@@ -3,6 +3,12 @@ Jax2D is a simple 2D rigid-body physics engine written entirely in [JAX](https:/
 Unlike other JAX physics engines, Jax2D is dynamic with respect to scene configuration, allowing heterogeneous scenes to be parallelised with `vmap`.
 Jax2D was initially created for the backend of the [Kinetix](https://github.com/FLAIROx/Kinetix) project and was developed by Michael_{[Matthews](https://github.com/MichaelTMatthews), [Beukman](https://github.com/Michael-Beukman)}.
 
+# Why should I use Jax2D?
+The main reason to use Jax2D over other JAX physics engines such as [Brax](https://github.com/google/brax) or [MJX](https://github.com/google-deepmind/mujoco/tree/main/mjx) is that Jax2D scenes are (largely) dynamically specified.
+Jax2D always has O(n^2) runtime with respect to the number of entities in a scene, since we must always calculate the full collision resolution for every pair of entities.
+This means it is usually not appropriate for simulating scenes with large numbers (>100) entities.
+
+In short: Jax2D excels at simulating **lots** of **small** and **diverse** scenes in parallel **very fast**.
 # Basic Usage
 
 
@@ -18,10 +24,8 @@ pre-commit install
 - 🍎 [Box2D](https://github.com/erincatto/box2d) The original C physics engine
 - 🤖 [Kinetix](https://github.com/FLAIROx/Kinetix) Jax2D as a reinforcement learning environment
 - 🌐 [KinetixJS](https://github.com/Michael-Beukman/KinetixJS) Jax2D reimplemented in Javascript
-- ⛏️ [Craftax](https://github.com/MichaelTMatthews/Craftax) 2D Minecraft in JAX
-- ⚡ [PureJaxRL](https://github.com/luchris429/purejaxrl) End-to-end RL implementations in Jax.
-- 🌎 [JaxUED](https://github.com/DramaCow/jaxued): CleanRL style UED implementations in Jax.
-
+- 🦾 [Brax](https://github.com/google/brax) 3D physics in JAX
+- 🦿 [MJX](https://github.com/google-deepmind/mujoco/tree/main/mjx) MuJoCo in JAX
 
 # Citation
 If you use Jax2D in your work please cite it as follows:
@@ -31,4 +35,8 @@ If you use Jax2D in your work please cite it as follows:
   title = {Jax2D: A 2D physics engine in JAX},
   url = {http://github.com/MichaelTMatthews/Jax2D},
   year = {2024},
-}```
+}
+```
+
+# Acknowledgements
+We would like to thank [Erin Catto](https://github.com/erincatto) and [Randy Gaul](https://randygaul.github.io/) for their invaluable online materials that allowed the creation of this engine.  If you would like to develop your own physics engine, we recommend starting [here](https://randygaul.github.io/collision-detection/2019/06/19/Collision-Detection-in-2D-Some-Steps-for-Success.html).
