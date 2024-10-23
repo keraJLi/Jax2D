@@ -130,10 +130,10 @@ class SimParams:
 @struct.dataclass
 class StaticSimParams:
     # State size
-    num_polygons: int = 5
-    num_circles: int = 2
-    num_joints: int = 1
-    num_thrusters: int = 1
+    num_polygons: int = 12
+    num_circles: int = 12
+    num_joints: int = 12
+    num_thrusters: int = 12
     max_polygon_vertices: int = 4
 
     # Compute amount

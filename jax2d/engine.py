@@ -894,24 +894,6 @@ class PhysicsEngine:
             ),
         )
 
-        # Render manifolds
-        # positions = jnp.concatenate([
-        #     rr_manifolds.collision_point[:self.static_sim_params.num_circles // 2, 0, :],
-        #     rr_manifolds.collision_point[:self.static_sim_params.num_circles // 2, 1, :]
-        # ], axis=0)
-        # active = jnp.concatenate([
-        #     rr_manifolds.active[:self.static_sim_params.num_circles // 2, 0],
-        #     rr_manifolds.active[:self.static_sim_params.num_circles // 2, 1]
-        # ], axis=0)
-        # state = state.replace(
-        #     circle=state.circle.replace(
-        #         position=positions,
-        #         # rotation=rr_manifolds.normal[:self.static_sim_params.num_circles],
-        #         active=active,
-        #         radius=jnp.ones(self.static_sim_params.num_circles, dtype=jnp.float32) * 0.1,
-        #     )
-        # )
-
         # Clip fast/far objects
         state = clip_state(state, params)
 
