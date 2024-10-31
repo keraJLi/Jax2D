@@ -207,8 +207,8 @@ def recalculate_mass_and_inertia(state: SimState, static_params, polygon_densiti
 
 @partial(jax.jit, static_argnums=(0,))
 def calculate_collision_matrix(static_sim_params, joints):
-    #       Rect  Circle
-    # Rect
+    #       Poly  Circle
+    # Poly
     # Circle
 
     matrix_size = static_sim_params.num_polygons + static_sim_params.num_circles
@@ -244,7 +244,7 @@ def calculate_collision_matrix(static_sim_params, joints):
 
 
 def select_shape(state, index, static_sim_params):
-    # Used a unified indexed for [rect0, ..., rectN, circle0, ..., circleN]
+    # Used a unified indexed for [poly0, ..., polyN, circle0, ..., circleN]
     polygon = jax.tree.map(lambda x: x[index], state.polygon)
     circle = jax.tree.map(lambda x: x[index - static_sim_params.num_polygons], state.circle)
 
@@ -255,8 +255,8 @@ def select_shape(state, index, static_sim_params):
     )
 
 
-def make_impulse_warm_starting_fn(static_sim_params, shape1_rect, shape2_rect, n_manifolds, index_pairs):
-    both_rect = shape1_rect & shape2_rect
+def make_impulse_warm_starting_fn(static_sim_params, shape1_poly, shape2_poly, n_manifolds, index_pairs):
+    both_poly = shape1_poly & shape2_poly
 
     def _apply_warm_starting(state, manifolds):
         def _apply_warm_starting_single_impulse(index):
@@ -264,28 +264,28 @@ def make_impulse_warm_starting_fn(static_sim_params, shape1_rect, shape2_rect, n
             s2_index = index_pairs[index, 1]
 
             does_collide = state.collision_matrix[
-                s1_index + static_sim_params.num_polygons * jnp.logical_not(shape1_rect),
-                s2_index + static_sim_params.num_polygons * jnp.logical_not(shape2_rect),
+                s1_index + static_sim_params.num_polygons * jnp.logical_not(shape1_poly),
+                s2_index + static_sim_params.num_polygons * jnp.logical_not(shape2_poly),
             ]
 
-            if shape1_rect:
+            if shape1_poly:
                 s1 = jax.tree.map(lambda x: x[s1_index], state.polygon)
             else:
                 s1 = jax.tree.map(lambda x: x[s1_index], state.circle)
 
-            if shape2_rect:
+            if shape2_poly:
                 s2 = jax.tree.map(lambda x: x[s2_index], state.polygon)
             else:
                 s2 = jax.tree.map(lambda x: x[s2_index], state.circle)
 
-            if shape1_rect:
+            if shape1_poly:
                 m1 = jax.tree.map(lambda x: x[index, 0], manifolds)
             else:
                 m1 = jax.tree.map(lambda x: x[index], manifolds)
 
             s1_dv, s2_dv, s1_drv, s2_drv = resolve_warm_starting_impulse(s1, s2, m1, does_collide)
 
-            if both_rect:
+            if both_poly:
                 m2 = jax.tree.map(lambda x: x[index, 1], manifolds)
 
                 s1 = s1.replace(
@@ -314,14 +314,14 @@ def make_impulse_warm_starting_fn(static_sim_params, shape1_rect, shape2_rect, n
         cv = state.circle.velocity
         cav = state.circle.angular_velocity
 
-        if shape1_rect:
+        if shape1_poly:
             rv = rv.at[index_pairs[:, 0]].add(s1_dv)
             rav = rav.at[index_pairs[:, 0]].add(s1_drv)
         else:
             cv = cv.at[index_pairs[:, 0]].add(s1_dv)
             cav = cav.at[index_pairs[:, 0]].add(s1_drv)
 
-        if shape2_rect:
+        if shape2_poly:
             rv = rv.at[index_pairs[:, 1]].add(s2_dv)
             rav = rav.at[index_pairs[:, 1]].add(s2_drv)
         else:
@@ -346,8 +346,8 @@ def make_impulse_warm_starting_fn(static_sim_params, shape1_rect, shape2_rect, n
 
 def make_impulse_resolver_fn(
     static_sim_params,
-    shape1_rect,
-    shape2_rect,
+    shape1_poly,
+    shape2_poly,
     n_manifolds,
     n_manifold_batches,
     batch_size,
@@ -355,7 +355,7 @@ def make_impulse_resolver_fn(
     index_pairs,
 ):
 
-    is_rr = shape1_rect & shape2_rect
+    is_rr = shape1_poly & shape2_poly
 
     def _resolve_manifolds(state, manifolds, params):
         def _resolve_manifold_batch(carry, indexes):
@@ -367,16 +367,16 @@ def make_impulse_resolver_fn(
                 s2_index = index_pairs[index, 1]
 
                 does_collide = state.collision_matrix[
-                    s1_index + static_sim_params.num_polygons * jnp.logical_not(shape1_rect),
-                    s2_index + static_sim_params.num_polygons * jnp.logical_not(shape2_rect),
+                    s1_index + static_sim_params.num_polygons * jnp.logical_not(shape1_poly),
+                    s2_index + static_sim_params.num_polygons * jnp.logical_not(shape2_poly),
                 ]
 
-                if shape1_rect:
+                if shape1_poly:
                     s1 = jax.tree.map(lambda x: x[s1_index], state.polygon)
                 else:
                     s1 = jax.tree.map(lambda x: x[s1_index], state.circle)
 
-                if shape2_rect:
+                if shape2_poly:
                     s2 = jax.tree.map(lambda x: x[s2_index], state.polygon)
                 else:
                     s2 = jax.tree.map(lambda x: x[s2_index], state.circle)
@@ -417,14 +417,14 @@ def make_impulse_resolver_fn(
             cv = state.circle.velocity
             cav = state.circle.angular_velocity
 
-            if shape1_rect:
+            if shape1_poly:
                 rv = rv.at[index_pairs[indexes, 0]].add(s1_dv)
                 rav = rav.at[index_pairs[indexes, 0]].add(s1_drv)
             else:
                 cv = cv.at[index_pairs[indexes, 0]].add(s1_dv)
                 cav = cav.at[index_pairs[indexes, 0]].add(s1_drv)
 
-            if shape2_rect:
+            if shape2_poly:
                 rv = rv.at[index_pairs[indexes, 1]].add(s2_dv)
                 rav = rav.at[index_pairs[indexes, 1]].add(s2_drv)
             else:
@@ -479,30 +479,30 @@ def make_joint_warm_starting_fn(static_sim_params, n_joints):
 
         ai, bi, a_dv, b_dv, a_drv, b_drv = jax.vmap(_apply_single_joint_ws)(jnp.arange(n_joints))
 
-        rect_ai = ai < static_sim_params.num_polygons
-        rect_bi = bi < static_sim_params.num_polygons
+        poly_ai = ai < static_sim_params.num_polygons
+        poly_bi = bi < static_sim_params.num_polygons
 
-        # Rect
-        new_rect_vel = state.polygon.velocity.at[ai].add(a_dv * rect_ai[:, None])
-        new_rect_vel = new_rect_vel.at[bi].add(b_dv * rect_bi[:, None])
+        # Poly
+        new_poly_vel = state.polygon.velocity.at[ai].add(a_dv * poly_ai[:, None])
+        new_poly_vel = new_poly_vel.at[bi].add(b_dv * poly_bi[:, None])
 
-        new_rect_angular_vel = state.polygon.angular_velocity.at[ai].add(a_drv * rect_ai)
-        new_rect_angular_vel = new_rect_angular_vel.at[bi].add(b_drv * rect_bi)
+        new_poly_angular_vel = state.polygon.angular_velocity.at[ai].add(a_drv * poly_ai)
+        new_poly_angular_vel = new_poly_angular_vel.at[bi].add(b_drv * poly_bi)
 
         # Circle
         ai -= static_sim_params.num_polygons
         bi -= static_sim_params.num_polygons
 
-        new_circle_vel = state.circle.velocity.at[ai].add(a_dv * jnp.logical_not(rect_ai[:, None]))
-        new_circle_vel = new_circle_vel.at[bi].add(b_dv * jnp.logical_not(rect_bi[:, None]))
+        new_circle_vel = state.circle.velocity.at[ai].add(a_dv * jnp.logical_not(poly_ai[:, None]))
+        new_circle_vel = new_circle_vel.at[bi].add(b_dv * jnp.logical_not(poly_bi[:, None]))
 
-        new_circle_angular_vel = state.circle.angular_velocity.at[ai].add(a_drv * jnp.logical_not(rect_ai))
-        new_circle_angular_vel = new_circle_angular_vel.at[bi].add(b_drv * jnp.logical_not(rect_bi))
+        new_circle_angular_vel = state.circle.angular_velocity.at[ai].add(a_drv * jnp.logical_not(poly_ai))
+        new_circle_angular_vel = new_circle_angular_vel.at[bi].add(b_drv * jnp.logical_not(poly_bi))
 
         state = state.replace(
             polygon=state.polygon.replace(
-                velocity=new_rect_vel,
-                angular_velocity=new_rect_angular_vel,
+                velocity=new_poly_vel,
+                angular_velocity=new_poly_angular_vel,
             ),
             circle=state.circle.replace(
                 velocity=new_circle_vel,
@@ -523,8 +523,8 @@ def make_joint_resolver_fn(n_joints, static_sim_params):
             s1 = select_shape(state, joint.a_index, static_sim_params)
             s2 = select_shape(state, joint.b_index, static_sim_params)
 
-            s1_is_rect = joint.a_index < static_sim_params.num_polygons
-            s2_is_rect = joint.b_index < static_sim_params.num_polygons
+            s1_is_poly = joint.a_index < static_sim_params.num_polygons
+            s2_is_poly = joint.b_index < static_sim_params.num_polygons
 
             a_dv, b_dv, a_drv, b_drv, a_dp, b_dp, jp, impulse, r_impulse = resolve_joint(s1, s2, joint, params)
 
@@ -537,37 +537,37 @@ def make_joint_resolver_fn(n_joints, static_sim_params):
             )
 
             rv = (
-                state.polygon.velocity.at[joint.a_index].add(a_dv * s1_is_rect).at[joint.b_index].add(b_dv * s2_is_rect)
+                state.polygon.velocity.at[joint.a_index].add(a_dv * s1_is_poly).at[joint.b_index].add(b_dv * s2_is_poly)
             )
             rav = (
                 state.polygon.angular_velocity.at[joint.a_index]
-                .add(a_drv * s1_is_rect)
+                .add(a_drv * s1_is_poly)
                 .at[joint.b_index]
-                .add(b_drv * s2_is_rect)
+                .add(b_drv * s2_is_poly)
             )
             rp = (
-                state.polygon.position.at[joint.a_index].add(a_dp * s1_is_rect).at[joint.b_index].add(b_dp * s2_is_rect)
+                state.polygon.position.at[joint.a_index].add(a_dp * s1_is_poly).at[joint.b_index].add(b_dp * s2_is_poly)
             )
 
             a_circle_index = joint.a_index - static_sim_params.num_polygons
             b_circle_index = joint.b_index - static_sim_params.num_polygons
             cv = (
                 state.circle.velocity.at[a_circle_index]
-                .add(a_dv * jnp.logical_not(s1_is_rect))
+                .add(a_dv * jnp.logical_not(s1_is_poly))
                 .at[b_circle_index]
-                .add(b_dv * jnp.logical_not(s2_is_rect))
+                .add(b_dv * jnp.logical_not(s2_is_poly))
             )
             cav = (
                 state.circle.angular_velocity.at[a_circle_index]
-                .add(a_drv * jnp.logical_not(s1_is_rect))
+                .add(a_drv * jnp.logical_not(s1_is_poly))
                 .at[b_circle_index]
-                .add(b_drv * jnp.logical_not(s2_is_rect))
+                .add(b_drv * jnp.logical_not(s2_is_poly))
             )
             cp = (
                 state.circle.position.at[a_circle_index]
-                .add(a_dp * jnp.logical_not(s1_is_rect))
+                .add(a_dp * jnp.logical_not(s1_is_poly))
                 .at[b_circle_index]
-                .add(b_dp * jnp.logical_not(s2_is_rect))
+                .add(b_dp * jnp.logical_not(s2_is_poly))
             )
 
             state = state.replace(
@@ -619,17 +619,17 @@ def get_pairwise_interaction_indices(static_sim_params: StaticSimParams):
     # Circle-Polygon
     ncr = static_sim_params.num_circles * static_sim_params.num_polygons
 
-    circle_rect_pairs = jnp.zeros((ncr, 2), dtype=jnp.int32)
+    circle_poly_pairs = jnp.zeros((ncr, 2), dtype=jnp.int32)
     ci = 0
     for c1 in range(static_sim_params.num_circles):
         for r1 in range(static_sim_params.num_polygons):
-            circle_rect_pairs = circle_rect_pairs.at[ci].set(jnp.array([c1, r1]))
+            circle_poly_pairs = circle_poly_pairs.at[ci].set(jnp.array([c1, r1]))
             ci += 1
 
     # Polygon-Polygon
     nrr = calc_nrr(static_sim_params)
 
-    rect_rect_pairs = jnp.zeros((nrr, 2), dtype=jnp.int32)
+    poly_poly_pairs = jnp.zeros((nrr, 2), dtype=jnp.int32)
 
     ci = 0
     for r1 in range(static_sim_params.num_polygons):
@@ -638,11 +638,11 @@ def get_pairwise_interaction_indices(static_sim_params: StaticSimParams):
                 r1 < static_sim_params.num_static_fixated_polys and r2 < static_sim_params.num_static_fixated_polys
             )
             valid = (r1 < r2) and (not both_fixated)
-            new_val = valid * jnp.array([r1, r2]) + (1 - valid) * rect_rect_pairs[ci]
-            rect_rect_pairs = rect_rect_pairs.at[ci].set(new_val)
+            new_val = valid * jnp.array([r1, r2]) + (1 - valid) * poly_poly_pairs[ci]
+            poly_poly_pairs = poly_poly_pairs.at[ci].set(new_val)
             ci += 1 * valid
 
-    return ncc, ncr, nrr, circle_circle_pairs, circle_rect_pairs, rect_rect_pairs
+    return ncc, ncr, nrr, circle_circle_pairs, circle_poly_pairs, poly_poly_pairs
 
 
 class PhysicsEngine:
@@ -654,8 +654,8 @@ class PhysicsEngine:
             ncr,
             nrr,
             self.circle_circle_pairs,
-            self.circle_rect_pairs,
-            self.rect_rect_pairs,
+            self.circle_poly_pairs,
+            self.poly_poly_pairs,
         ) = get_pairwise_interaction_indices(static_sim_params)
         batch_size = self.static_sim_params.solver_batch_size
 
@@ -672,7 +672,7 @@ class PhysicsEngine:
             nrr_b,
             batch_size,
             nrr_b * batch_size,
-            self.rect_rect_pairs,
+            self.poly_poly_pairs,
         )
         self.cr_fn = make_impulse_resolver_fn(
             static_sim_params,
@@ -682,7 +682,7 @@ class PhysicsEngine:
             ncr_b,
             batch_size,
             ncr_b * batch_size,
-            self.circle_rect_pairs,
+            self.circle_poly_pairs,
         )
         self.cc_fn = make_impulse_resolver_fn(
             static_sim_params,
@@ -699,8 +699,8 @@ class PhysicsEngine:
         self.j_fn = make_joint_resolver_fn(self.static_sim_params.num_joints, self.static_sim_params)
 
         # Define impulse warm starting functions
-        self.ws_rr_fn = make_impulse_warm_starting_fn(static_sim_params, True, True, nrr, self.rect_rect_pairs)
-        self.ws_cr_fn = make_impulse_warm_starting_fn(static_sim_params, False, True, ncr, self.circle_rect_pairs)
+        self.ws_rr_fn = make_impulse_warm_starting_fn(static_sim_params, True, True, nrr, self.poly_poly_pairs)
+        self.ws_cr_fn = make_impulse_warm_starting_fn(static_sim_params, False, True, ncr, self.circle_poly_pairs)
         self.ws_cc_fn = make_impulse_warm_starting_fn(static_sim_params, False, False, ncc, self.circle_circle_pairs)
 
         # Define joint warm starting functions
@@ -716,7 +716,7 @@ class PhysicsEngine:
             ms = generate_manifolds_polygon_polygon(r1, r2, warm_start_manifold)
             return ms
 
-        rr_manifolds = jax.vmap(_calc_rr_manifold)(self.rect_rect_pairs, jnp.arange(len(self.rect_rect_pairs)))
+        rr_manifolds = jax.vmap(_calc_rr_manifold)(self.poly_poly_pairs, jnp.arange(len(self.poly_poly_pairs)))
 
         def _calc_cr_manifold(cr_indexes, m_index):
             c1 = jax.tree.map(lambda x: x[cr_indexes[0]], state.circle)
@@ -727,7 +727,7 @@ class PhysicsEngine:
             m = generate_manifold_circle_polygon(c1, r1, warm_start_manifold)
             return m
 
-        cr_manifolds = jax.vmap(_calc_cr_manifold)(self.circle_rect_pairs, jnp.arange(len(self.circle_rect_pairs)))
+        cr_manifolds = jax.vmap(_calc_cr_manifold)(self.circle_poly_pairs, jnp.arange(len(self.circle_poly_pairs)))
 
         def _calc_cc_manifold(cc_indexes, m_index):
             c1 = jax.tree.map(lambda x: x[cc_indexes[0]], state.circle)
@@ -742,6 +742,7 @@ class PhysicsEngine:
 
         return rr_manifolds, cr_manifolds, cc_manifolds
 
+    @partial(jax.jit, static_argnums=(0,))
     def step(self, state: SimState, params: SimParams, actions: jnp.ndarray):
 
         chex.assert_shape(
@@ -781,21 +782,21 @@ class PhysicsEngine:
 
         ai, bi, a_drv, b_drv, max_speed = jax.vmap(_calc_motors)(jnp.arange(self.static_sim_params.num_joints))
 
-        rect_ai = ai < self.static_sim_params.num_polygons
-        rect_bi = bi < self.static_sim_params.num_polygons
+        poly_ai = ai < self.static_sim_params.num_polygons
+        poly_bi = bi < self.static_sim_params.num_polygons
 
-        new_rect_angular_vel = state.polygon.angular_velocity.at[ai].add(a_drv * rect_ai)
-        new_rect_angular_vel = new_rect_angular_vel.at[bi].add(b_drv * rect_bi)
+        new_poly_angular_vel = state.polygon.angular_velocity.at[ai].add(a_drv * poly_ai)
+        new_poly_angular_vel = new_poly_angular_vel.at[bi].add(b_drv * poly_bi)
 
         ai -= self.static_sim_params.num_polygons
         bi -= self.static_sim_params.num_polygons
 
-        new_circle_angular_vel = state.circle.angular_velocity.at[ai].add(a_drv * jnp.logical_not(rect_ai))
-        new_circle_angular_vel = new_circle_angular_vel.at[bi].add(b_drv * jnp.logical_not(rect_bi))
+        new_circle_angular_vel = state.circle.angular_velocity.at[ai].add(a_drv * jnp.logical_not(poly_ai))
+        new_circle_angular_vel = new_circle_angular_vel.at[bi].add(b_drv * jnp.logical_not(poly_bi))
 
         state = state.replace(
             polygon=state.polygon.replace(
-                angular_velocity=new_rect_angular_vel,
+                angular_velocity=new_poly_angular_vel,
             ),
             circle=state.circle.replace(
                 angular_velocity=new_circle_angular_vel,
@@ -811,7 +812,7 @@ class PhysicsEngine:
                 pos_after_transform = rmat(parent_shape.rotation) @ thruster.relative_position
 
                 rotation = thruster.rotation + parent_shape.rotation
-                direction = jnp.array([jnp.cos(rotation), jnp.sin(rotation)])
+                dipolyion = jnp.array([jnp.cos(rotation), jnp.sin(rotation)])
                 force = (
                     thruster.power
                     * thruster.active
@@ -820,23 +821,23 @@ class PhysicsEngine:
                     * params.dt
                 )
 
-                drv = parent_shape.inverse_inertia * jnp.cross(pos_after_transform, direction) * force
-                dv = parent_shape.inverse_mass * direction * force
+                drv = parent_shape.inverse_inertia * jnp.cross(pos_after_transform, dipolyion) * force
+                dv = parent_shape.inverse_mass * dipolyion * force
                 return thruster.object_index, drv, dv
 
             ai, drv_i, dv_i = jax.vmap(calc_thruster)(jnp.arange(self.static_sim_params.num_thrusters))
-            is_rect = ai < self.static_sim_params.num_polygons
+            is_poly = ai < self.static_sim_params.num_polygons
 
-            new_rect_angular_vel = state.polygon.angular_velocity.at[ai].add(drv_i * is_rect)
-            new_rect_vel = state.polygon.velocity.at[ai].add(dv_i * is_rect[:, None])
+            new_poly_angular_vel = state.polygon.angular_velocity.at[ai].add(drv_i * is_poly)
+            new_poly_vel = state.polygon.velocity.at[ai].add(dv_i * is_poly[:, None])
             ai -= self.static_sim_params.num_polygons
-            new_circle_angular_vel = state.circle.angular_velocity.at[ai].add(drv_i * jnp.logical_not(is_rect))
-            new_circle_vel = state.circle.velocity.at[ai].add(dv_i * jnp.logical_not(is_rect[:, None]))
+            new_circle_angular_vel = state.circle.angular_velocity.at[ai].add(drv_i * jnp.logical_not(is_poly))
+            new_circle_vel = state.circle.velocity.at[ai].add(dv_i * jnp.logical_not(is_poly[:, None]))
 
             state = state.replace(
                 polygon=state.polygon.replace(
-                    angular_velocity=new_rect_angular_vel,
-                    velocity=new_rect_vel,
+                    angular_velocity=new_poly_angular_vel,
+                    velocity=new_poly_vel,
                 ),
                 circle=state.circle.replace(
                     angular_velocity=new_circle_angular_vel,
@@ -947,8 +948,8 @@ def get_empty_collision_manifolds(static_sim_params: StaticSimParams):
     return acc_rr_manifolds, acc_cr_manifolds, acc_cc_manifolds
 
 
-@partial(jax.jit, static_argnums=(1,))
-def create_empty_sim(sim_params, static_sim_params):
+def create_empty_sim(static_sim_params, add_floor=True, add_walls_and_ceiling=True, scene_size=5):
+
     # Polygons
     polygon_pos = jnp.zeros((static_sim_params.num_polygons, 2), dtype=jnp.float32)
     polygon_vertices = jnp.zeros(
@@ -960,6 +961,7 @@ def create_empty_sim(sim_params, static_sim_params):
     polygon_angular_velocity = jnp.zeros(static_sim_params.num_polygons, dtype=jnp.float32)
     polygon_inverse_mass = jnp.zeros(static_sim_params.num_polygons, dtype=jnp.float32)
     polygon_inverse_inertia = jnp.zeros(static_sim_params.num_polygons, dtype=jnp.float32)
+    polygon_active = jnp.zeros(static_sim_params.num_polygons, dtype=bool)
 
     # Circles
     circle_position = jnp.zeros((static_sim_params.num_circles, 2), dtype=jnp.float32)
@@ -969,72 +971,75 @@ def create_empty_sim(sim_params, static_sim_params):
     circle_inverse_inertia = jnp.zeros(static_sim_params.num_circles, dtype=jnp.float32)
     circle_active = jnp.zeros(static_sim_params.num_circles, dtype=bool)
 
-    rect_active = (
-        jnp.zeros(static_sim_params.num_polygons, dtype=bool).at[: static_sim_params.num_static_fixated_polys].set(True)
-    )
     # We simulate half-spaces by just using polygons with large dimensions.
     # Floor
-    polygon_pos = polygon_pos.at[0].set(jnp.array([2.5, -4.8]))
-    polygon_vertices = polygon_vertices.at[0].set(
-        jnp.array(
-            [
-                [2.5, 5.2],
-                [2.5, -5.2],
-                [-2.5, -5.2],
-                [-2.5, 5.2],
-            ]
+    if add_floor:
+        floor_offset = 0.2
+        polygon_pos = polygon_pos.at[0].set(jnp.array([scene_size / 2, -scene_size + floor_offset]))
+        polygon_vertices = polygon_vertices.at[0].set(
+            jnp.array(
+                [
+                    [scene_size / 2, scene_size + floor_offset],
+                    [scene_size / 2, -scene_size - floor_offset],
+                    [-scene_size / 2, -scene_size - floor_offset],
+                    [-scene_size / 2, scene_size + floor_offset],
+                ]
+            )
         )
-    )
 
-    polygon_inverse_mass = polygon_inverse_mass.at[0].set(0.0)
-    polygon_inverse_inertia = polygon_inverse_inertia.at[0].set(0.0)
+        polygon_inverse_mass = polygon_inverse_mass.at[0].set(0.0)
+        polygon_inverse_inertia = polygon_inverse_inertia.at[0].set(0.0)
+        polygon_active = polygon_active.at[0].set(True)
 
-    # Side Walls
-    polygon_pos = polygon_pos.at[1].set(jnp.array([0.0, 0.0]))
-    polygon_vertices = polygon_vertices.at[1].set(
-        jnp.array(
-            [
-                [-5, 5],
-                [-0.05, 5],
-                [-0.05, 0],
-                [-5, 0],
-            ]
+    if add_walls_and_ceiling:
+        # Side Walls
+        polygon_pos = polygon_pos.at[1].set(jnp.array([0.0, 0.0]))
+        polygon_vertices = polygon_vertices.at[1].set(
+            jnp.array(
+                [
+                    [-scene_size, scene_size],
+                    [-0.05, scene_size],
+                    [-0.05, 0],
+                    [-scene_size, 0],
+                ]
+            )
         )
-    )
 
-    polygon_inverse_mass = polygon_inverse_mass.at[1].set(0.0)
-    polygon_inverse_inertia = polygon_inverse_inertia.at[1].set(0.0)
+        polygon_inverse_mass = polygon_inverse_mass.at[1].set(0.0)
+        polygon_inverse_inertia = polygon_inverse_inertia.at[1].set(0.0)
 
-    polygon_pos = polygon_pos.at[2].set(jnp.array([0.0, 0.0]))
-    polygon_vertices = polygon_vertices.at[2].set(
-        jnp.array(
-            [
-                [5, 5],
-                [10.0, 5],
-                [10.0, 0],
-                [5, 0],
-            ]
+        polygon_pos = polygon_pos.at[2].set(jnp.array([0.0, 0.0]))
+        polygon_vertices = polygon_vertices.at[2].set(
+            jnp.array(
+                [
+                    [scene_size, scene_size],
+                    [2 * scene_size, scene_size],
+                    [2 * scene_size, 0],
+                    [scene_size, 0],
+                ]
+            )
         )
-    )
 
-    polygon_inverse_mass = polygon_inverse_mass.at[2].set(0.0)
-    polygon_inverse_inertia = polygon_inverse_inertia.at[2].set(0.0)
+        polygon_inverse_mass = polygon_inverse_mass.at[2].set(0.0)
+        polygon_inverse_inertia = polygon_inverse_inertia.at[2].set(0.0)
 
-    # Ceiling
-    polygon_pos = polygon_pos.at[3].set(jnp.array([2.5, 0.2 + 10]))
-    polygon_vertices = polygon_vertices.at[3].set(
-        jnp.array(
-            [
-                [2.5, 5.2],
-                [2.5, -5.2],
-                [-2.5, -5.2],
-                [-2.5, 5.2],
-            ]
+        # Ceiling
+        polygon_pos = polygon_pos.at[3].set(jnp.array([scene_size / 2, floor_offset + 2 * scene_size]))
+        polygon_vertices = polygon_vertices.at[3].set(
+            jnp.array(
+                [
+                    [scene_size, scene_size + floor_offset],
+                    [scene_size / 2, -scene_size - floor_offset],
+                    [-(scene_size / 2), -scene_size - floor_offset],
+                    [-(scene_size / 2), scene_size + floor_offset],
+                ]
+            )
         )
-    )
 
-    polygon_inverse_mass = polygon_inverse_mass.at[3].set(0.0)
-    polygon_inverse_inertia = polygon_inverse_inertia.at[3].set(0.0)
+        polygon_inverse_mass = polygon_inverse_mass.at[3].set(0.0)
+        polygon_inverse_inertia = polygon_inverse_inertia.at[3].set(0.0)
+
+        polygon_active = polygon_active.at[1:4].set(True)
 
     # Joints
     revolute_joint_a_pos = jnp.zeros((static_sim_params.num_joints, 2), dtype=jnp.float32)
@@ -1088,7 +1093,7 @@ def create_empty_sim(sim_params, static_sim_params):
             friction=jnp.ones(static_sim_params.num_polygons),
             restitution=jnp.zeros(static_sim_params.num_polygons, dtype=jnp.float32),
             radius=jnp.zeros(static_sim_params.num_polygons, dtype=jnp.float32),
-            active=rect_active,
+            active=polygon_active,
             collision_mode=jnp.ones(static_sim_params.num_polygons, dtype=int)
             .at[: static_sim_params.num_static_fixated_polys]
             .set(2),

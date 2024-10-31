@@ -1,7 +1,11 @@
 # Jax2D
-Jax2D is a simple 2D rigid-body physics engine written entirely in [JAX](https://github.com/google/jax) and based off the [Box2D](https://github.com/erincatto/box2d) engine.
+Jax2D is a 2D rigid-body physics engine written entirely in [JAX](https://github.com/google/jax) and based off the [Box2D](https://github.com/erincatto/box2d) engine.
 Unlike other JAX physics engines, Jax2D is dynamic with respect to scene configuration, allowing heterogeneous scenes to be parallelised with `vmap`.
 Jax2D was initially created for the backend of the [Kinetix](https://github.com/FLAIROx/Kinetix) project and was developed by Michael_{[Matthews](https://github.com/MichaelTMatthews), [Beukman](https://github.com/Michael-Beukman)}.
+
+<p align="center">
+ <img width="50%" src="images/tower.gif" />
+</p>
 
 # Why should I use Jax2D?
 The main reason to use Jax2D over other JAX physics engines such as [Brax](https://github.com/google/brax) or [MJX](https://github.com/google-deepmind/mujoco/tree/main/mjx) is that Jax2D scenes are (largely) dynamically specified.
@@ -9,7 +13,9 @@ Jax2D always has O(n^2) runtime with respect to the number of entities in a scen
 This means it is usually not appropriate for simulating scenes with large numbers (>100) of entities.
 
 In short: Jax2D excels at simulating **lots** of **small** and **diverse** scenes in parallel **very fast**.
+
 # Basic Usage
+
 
 
 # Installation
