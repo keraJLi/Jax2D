@@ -742,7 +742,6 @@ class PhysicsEngine:
 
         return rr_manifolds, cr_manifolds, cc_manifolds
 
-    @partial(jax.jit, static_argnums=(0,))
     def step(self, state: SimState, params: SimParams, actions: jnp.ndarray):
 
         chex.assert_shape(
