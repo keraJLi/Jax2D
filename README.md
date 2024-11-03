@@ -1,4 +1,15 @@
 # Jax2D
+<p align="center">
+        <a href= "https://pypi.org/project/jax2d/">
+        <img src="https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue" /></a>
+        <a href= "https://pypi.org/project/jax2d/">
+        <img src="https://img.shields.io/badge/pypi-1.0.0-green" /></a>
+       <a href= "https://github.com/MichaelTMatthews/Craftax/blob/main/LICENSE">
+        <img src="https://img.shields.io/badge/License-MIT-yellow" /></a>
+       <a href= "https://github.com/psf/black">
+        <img src="https://img.shields.io/badge/code%20style-black-000000.svg" /></a>
+</p>
+
 Jax2D is a 2D rigid-body physics engine written entirely in [JAX](https://github.com/google/jax) and based off the [Box2D](https://github.com/erincatto/box2d) engine.
 Unlike other JAX physics engines, Jax2D is dynamic with respect to scene configuration, allowing heterogeneous scenes to be parallelised with `vmap`.
 Jax2D was initially created for the backend of the [Kinetix](https://github.com/FLAIROx/Kinetix) project and was developed by Michael_{[Matthews](https://github.com/MichaelTMatthews), [Beukman](https://github.com/Michael-Beukman)}.
