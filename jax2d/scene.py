@@ -1,3 +1,5 @@
+from functools import partial
+
 import jax
 import jax.numpy as jnp
 
@@ -6,14 +8,69 @@ from jax2d.engine import (
     calc_inverse_inertia_circle,
     calc_inverse_mass_polygon,
     calc_inverse_inertia_polygon,
+    select_shape,
 )
 from jax2d.sim_state import SimState
 
+# a_index: int
+# b_index: int
+# a_relative_pos: jnp.ndarray
+# b_relative_pos: jnp.ndarray
+# global_position: jnp.ndarray  # Cached
+# active: bool
+#
+# # Accumulated impulses
+# acc_impulse: jnp.ndarray
+# acc_r_impulse: jnp.ndarray
+#
+# # Motor
+# motor_speed: float
+# motor_power: float
+# motor_on: bool
+#
+# # Revolute Joint
+# motor_has_joint_limits: bool
+# min_rotation: float
+# max_rotation: float
+#
+# # Fixed joint
+# is_fixed_joint: bool
+# rotation: float
 
+
+def add_fjoint_to_scene(
+    sim_state: SimState,
+    a_index,
+    b_index,
+    a_relative_pos,
+    b_relative_pos,
+):
+    joint_index = jnp.argmin(sim_state.joint.active)
+    can_add_joint = jnp.logical_not(sim_state.joint.active.all())
+
+    new_sim_state = sim_state.replace(
+        joint=sim_state.joint.replace(
+            a_index=sim_state.joint.a_index.at[joint_index].set(a_index),
+            b_index=sim_state.joint.b_index.at[joint_index].set(b_index),
+            a_relative_pos=sim_state.joint.a_relative_pos.at[joint_index].set(a_relative_pos),
+            b_relative_pos=sim_state.joint.b_relative_pos.at[joint_index].set(b_relative_pos),
+            active=sim_state.joint.active.at[joint_index].set(True),
+            is_fixed_joint=sim_state.joint.is_fixed_joint.at[joint_index].set(True),
+        )
+    )
+
+    return (
+        jax.tree_util.tree_map(lambda x, y: jax.lax.select(can_add_joint, x, y), new_sim_state, sim_state),
+        joint_index,
+    )
+
+
+@partial(jax.jit, static_argnames="static_sim_params")
 def add_circle_to_scene(
     sim_state: SimState,
     position,
     radius,
+    static_sim_params,
     rotation=0.0,
     velocity=jnp.zeros(2),
     angular_velocity=0.0,
@@ -42,9 +99,16 @@ def add_circle_to_scene(
         )
     )
 
-    return jax.tree_util.tree_map(lambda x, y: jax.lax.select(can_add_circle, x, y), new_sim_state, sim_state)
+    return (
+        jax.tree_util.tree_map(lambda x, y: jax.lax.select(can_add_circle, x, y), new_sim_state, sim_state),
+        (
+            circle_index,
+            circle_index + static_sim_params.num_polygons,
+        ),
+    )
 
 
+@partial(jax.jit, static_argnames="static_sim_params")
 def add_rectangle_to_scene(
     sim_state: SimState,
     position,
@@ -88,4 +152,7 @@ def add_rectangle_to_scene(
         )
     )
 
-    return jax.tree_util.tree_map(lambda x, y: jax.lax.select(can_add_polygon, x, y), new_sim_state, sim_state)
+    return (
+        jax.tree_util.tree_map(lambda x, y: jax.lax.select(can_add_polygon, x, y), new_sim_state, sim_state),
+        (polygon_index, polygon_index),
+    )

@@ -9,7 +9,7 @@ from matplotlib import pyplot as plt
 
 from jax2d.engine import PhysicsEngine, create_empty_sim
 from jax2d.maths import rmat
-from jax2d.scene import add_circle_to_scene, add_rectangle_to_scene
+from jax2d.scene import add_circle_to_scene, add_rectangle_to_scene, add_fjoint_to_scene
 from jax2d.sim_state import StaticSimParams, SimParams
 
 
@@ -100,10 +100,12 @@ def main():
 
     # Create scene
     sim_state = create_empty_sim(static_sim_params)
-    sim_state = add_circle_to_scene(sim_state, jnp.ones(2) * 2, 1)
-    sim_state = add_rectangle_to_scene(sim_state, jnp.ones(2), jnp.array([0.5, 1.0]), static_sim_params)
-    sim_state = add_rectangle_to_scene(sim_state, jnp.ones(2) * 2, jnp.array([1.5, 1.0]), static_sim_params)
-    sim_state = add_rectangle_to_scene(sim_state, jnp.ones(2) * 3, jnp.array([2.5, 1.0]), static_sim_params)
+    sim_state, (_, c1) = add_circle_to_scene(sim_state, jnp.ones(2) * 2, 0.1, static_sim_params)
+    sim_state, (_, r1) = add_rectangle_to_scene(sim_state, jnp.ones(2), jnp.array([0.5, 1.0]), static_sim_params)
+    sim_state, _ = add_rectangle_to_scene(sim_state, jnp.ones(2) * 2, jnp.array([1.5, 1.0]), static_sim_params)
+    sim_state, _ = add_rectangle_to_scene(sim_state, jnp.ones(2) * 3, jnp.array([2.5, 1.0]), static_sim_params)
+
+    sim_state, _ = add_fjoint_to_scene(sim_state, c1, r1, jnp.zeros(2), jnp.ones(2))
 
     # Renderer
     renderer = make_render_pixels(static_sim_params, screen_dim)
@@ -122,7 +124,7 @@ def main():
         pixels = renderer(sim_state)
 
         # Update screen
-        surface = pygame.surfarray.make_surface(np.array(pixels))
+        surface = pygame.surfarray.make_surface(np.array(pixels)[:, ::-1])
         screen_surface.blit(surface, (0, 0))
         pygame.display.flip()
 
