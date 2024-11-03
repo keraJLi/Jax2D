@@ -2,6 +2,7 @@ from functools import partial
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 from jax2d.engine import (
     calc_inverse_mass_circle,
@@ -9,6 +10,7 @@ from jax2d.engine import (
     calc_inverse_mass_polygon,
     calc_inverse_inertia_polygon,
     select_shape,
+    calculate_collision_matrix,
 )
 from jax2d.sim_state import SimState
 
@@ -38,12 +40,59 @@ from jax2d.sim_state import SimState
 # rotation: float
 
 
-def add_fjoint_to_scene(
+@partial(jax.jit, static_argnames="static_sim_params")
+def add_revolute_joint_to_scene(
     sim_state: SimState,
     a_index,
     b_index,
     a_relative_pos,
     b_relative_pos,
+    static_sim_params,
+    motor_on=False,
+    motor_speed=1.0,
+    motor_power=1.0,
+    has_joint_limits=False,
+    min_rotation=-np.pi,
+    max_rotation=np.pi,
+):
+    joint_index = jnp.argmin(sim_state.joint.active)
+    can_add_joint = jnp.logical_not(sim_state.joint.active.all())
+
+    new_sim_state = sim_state.replace(
+        joint=sim_state.joint.replace(
+            a_index=sim_state.joint.a_index.at[joint_index].set(a_index),
+            b_index=sim_state.joint.b_index.at[joint_index].set(b_index),
+            a_relative_pos=sim_state.joint.a_relative_pos.at[joint_index].set(a_relative_pos),
+            b_relative_pos=sim_state.joint.b_relative_pos.at[joint_index].set(b_relative_pos),
+            active=sim_state.joint.active.at[joint_index].set(True),
+            is_fixed_joint=sim_state.joint.is_fixed_joint.at[joint_index].set(False),
+            motor_on=sim_state.joint.motor_on.at[joint_index].set(motor_on),
+            motor_speed=sim_state.joint.motor_speed.at[joint_index].set(motor_speed),
+            motor_power=sim_state.joint.motor_power.at[joint_index].set(motor_power),
+            motor_has_joint_limits=sim_state.joint.motor_has_joint_limits.at[joint_index].set(has_joint_limits),
+            min_rotation=sim_state.joint.min_rotation.at[joint_index].set(min_rotation),
+            max_rotation=sim_state.joint.max_rotation.at[joint_index].set(max_rotation),
+        )
+    )
+
+    new_sim_state = new_sim_state.replace(
+        collision_matrix=calculate_collision_matrix(static_sim_params, new_sim_state.joint)
+    )
+
+    return (
+        jax.tree_util.tree_map(lambda x, y: jax.lax.select(can_add_joint, x, y), new_sim_state, sim_state),
+        joint_index,
+    )
+
+
+@partial(jax.jit, static_argnames="static_sim_params")
+def add_fixed_joint_to_scene(
+    sim_state: SimState,
+    a_index,
+    b_index,
+    a_relative_pos,
+    b_relative_pos,
+    static_sim_params,
 ):
     joint_index = jnp.argmin(sim_state.joint.active)
     can_add_joint = jnp.logical_not(sim_state.joint.active.all())
@@ -57,6 +106,10 @@ def add_fjoint_to_scene(
             active=sim_state.joint.active.at[joint_index].set(True),
             is_fixed_joint=sim_state.joint.is_fixed_joint.at[joint_index].set(True),
         )
+    )
+
+    new_sim_state = new_sim_state.replace(
+        collision_matrix=calculate_collision_matrix(static_sim_params, new_sim_state.joint)
     )
 
     return (

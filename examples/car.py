@@ -9,7 +9,12 @@ from matplotlib import pyplot as plt
 
 from jax2d.engine import PhysicsEngine, create_empty_sim
 from jax2d.maths import rmat
-from jax2d.scene import add_circle_to_scene, add_rectangle_to_scene, add_fjoint_to_scene
+from jax2d.scene import (
+    add_circle_to_scene,
+    add_rectangle_to_scene,
+    add_fixed_joint_to_scene,
+    add_revolute_joint_to_scene,
+)
 from jax2d.sim_state import StaticSimParams, SimParams
 
 
@@ -102,10 +107,10 @@ def main():
     sim_state = create_empty_sim(static_sim_params)
     sim_state, (_, c1) = add_circle_to_scene(sim_state, jnp.ones(2) * 2, 0.1, static_sim_params)
     sim_state, (_, r1) = add_rectangle_to_scene(sim_state, jnp.ones(2), jnp.array([0.5, 1.0]), static_sim_params)
-    sim_state, _ = add_rectangle_to_scene(sim_state, jnp.ones(2) * 2, jnp.array([1.5, 1.0]), static_sim_params)
+    sim_state, (_, r2) = add_rectangle_to_scene(sim_state, jnp.ones(2), jnp.array([1.5, 1.0]), static_sim_params)
     sim_state, _ = add_rectangle_to_scene(sim_state, jnp.ones(2) * 3, jnp.array([2.5, 1.0]), static_sim_params)
 
-    sim_state, _ = add_fjoint_to_scene(sim_state, c1, r1, jnp.zeros(2), jnp.ones(2))
+    sim_state, _ = add_revolute_joint_to_scene(sim_state, r1, r2, jnp.zeros(2), jnp.ones(2), static_sim_params)
 
     # Renderer
     renderer = make_render_pixels(static_sim_params, screen_dim)
