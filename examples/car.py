@@ -14,6 +14,7 @@ from jax2d.scene import (
     add_rectangle_to_scene,
     add_fixed_joint_to_scene,
     add_revolute_joint_to_scene,
+    add_thruster_to_scene,
 )
 from jax2d.sim_state import StaticSimParams, SimParams
 
@@ -111,6 +112,7 @@ def main():
     sim_state, _ = add_rectangle_to_scene(sim_state, jnp.ones(2) * 3, jnp.array([2.5, 1.0]), static_sim_params)
 
     sim_state, _ = add_revolute_joint_to_scene(sim_state, r1, r2, jnp.zeros(2), jnp.ones(2), static_sim_params)
+    sim_state, _ = add_thruster_to_scene(sim_state, r2, jnp.zeros(2), 0.0, power=10)
 
     # Renderer
     renderer = make_render_pixels(static_sim_params, screen_dim)
@@ -122,7 +124,7 @@ def main():
     screen_surface = pygame.display.set_mode(screen_dim)
 
     for i in range(1000):
-        actions = jnp.zeros(static_sim_params.num_joints + static_sim_params.num_thrusters)
+        actions = jnp.ones(static_sim_params.num_joints + static_sim_params.num_thrusters)
         sim_state, _ = step_fn(sim_state, sim_params, actions)
 
         # Render

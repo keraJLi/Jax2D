@@ -14,30 +14,25 @@ from jax2d.engine import (
 )
 from jax2d.sim_state import SimState
 
-# a_index: int
-# b_index: int
-# a_relative_pos: jnp.ndarray
-# b_relative_pos: jnp.ndarray
-# global_position: jnp.ndarray  # Cached
-# active: bool
-#
-# # Accumulated impulses
-# acc_impulse: jnp.ndarray
-# acc_r_impulse: jnp.ndarray
-#
-# # Motor
-# motor_speed: float
-# motor_power: float
-# motor_on: bool
-#
-# # Revolute Joint
-# motor_has_joint_limits: bool
-# min_rotation: float
-# max_rotation: float
-#
-# # Fixed joint
-# is_fixed_joint: bool
-# rotation: float
+
+def add_thruster_to_scene(sim_state: SimState, object_index, relative_position, rotation, power=1.0):
+    thruster_index = jnp.argmin(sim_state.thruster.active)
+    can_add_thruster = jnp.logical_not(sim_state.thruster.active.all())
+
+    new_sim_state = sim_state.replace(
+        thruster=sim_state.thruster.replace(
+            object_index=sim_state.thruster.object_index.at[thruster_index].set(object_index),
+            relative_position=sim_state.thruster.relative_position.at[thruster_index].set(relative_position),
+            rotation=sim_state.thruster.rotation.at[thruster_index].set(rotation),
+            power=sim_state.thruster.power.at[thruster_index].set(power),
+            active=sim_state.thruster.active.at[thruster_index].set(True),
+        )
+    )
+
+    return (
+        jax.tree_util.tree_map(lambda x, y: jax.lax.select(can_add_thruster, x, y), new_sim_state, sim_state),
+        thruster_index,
+    )
 
 
 @partial(jax.jit, static_argnames="static_sim_params")
