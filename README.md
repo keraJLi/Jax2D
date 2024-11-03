@@ -14,7 +14,8 @@ This means it is usually not appropriate for simulating scenes with large number
 
 In short: Jax2D excels at simulating **lots** of **small** and **diverse** scenes in parallel **very fast**.
 
-# Basic Usage
+# Example Usage
+Below shows an example of how to use Jax2D to create and run a scene.  For the full code see [examples/car.py](examples/car.py)
 ```python
 # Create engine with default parameters
 static_sim_params = StaticSimParams()
@@ -29,54 +30,65 @@ sim_state, (_, r_index) = add_rectangle_to_scene(
     sim_state, static_sim_params, position=jnp.array([2.0, 1.0]), dimensions=jnp.array([1.0, 0.4])
 )
 
-# Create
-sim_state, (_, c1_index) = add_circle_to_scene(sim_state, static_sim_params, position=jnp.array([1.5, 1.0]), radius=0.35)
-sim_state, (_, c2_index) = add_circle_to_scene(sim_state, static_sim_params, position=jnp.array([2.5, 1.0]), radius=0.35)
+# Create circles for the wheels of the car
+sim_state, (_, c1_index) = add_circle_to_scene(
+    sim_state, static_sim_params, position=jnp.array([1.5, 1.0]), radius=0.35
+)
+sim_state, (_, c2_index) = add_circle_to_scene(
+    sim_state, static_sim_params, position=jnp.array([2.5, 1.0]), radius=0.35
+)
 
+# Join the wheels to the car body with revolute joints
+# Relative positions are from the centre of masses of each object
 sim_state, _ = add_revolute_joint_to_scene(
-    sim_state, static_sim_params, a_index=r_index, b_index=c1_index, a_relative_pos=jnp.array([-0.5, 0.0]), b_relative_pos=jnp.zeros(2), motor_on=True
+    sim_state,
+    static_sim_params,
+    a_index=r_index,
+    b_index=c1_index,
+    a_relative_pos=jnp.array([-0.5, 0.0]),
+    b_relative_pos=jnp.zeros(2),
+    motor_on=True,
 )
 sim_state, _ = add_revolute_joint_to_scene(
-    sim_state, static_sim_params, a_index=r_index, b_index=c2_index, a_relative_pos=jnp.array([0.5, 0.0]), b_relative_pos=jnp.zeros(2), motor_on=True
+    sim_state,
+    static_sim_params,
+    a_index=r_index,
+    b_index=c2_index,
+    a_relative_pos=jnp.array([0.5, 0.0]),
+    b_relative_pos=jnp.zeros(2),
+    motor_on=True,
 )
 
-triangle_vertices = jnp.array(
-    [
-        [0.5, 0.1],
-        [0.5, -0.1],
-        [-0.5, -0.1],
-    ]
-)
-sim_state, (_, t1) = add_polygon_to_scene(
-    sim_state, static_sim_params, position=jnp.array([2.7, 0.1]), vertices=triangle_vertices, n_vertices=3, fixated=True
+# Add a triangle for a ramp - we fixate the ramp so it can't move
+triangle_vertices = jnp.array([[0.5, 0.1], [0.5, -0.1], [-0.5, -0.1]])
+sim_state, _ = add_polygon_to_scene(
+    sim_state,
+    static_sim_params,
+    position=jnp.array([2.7, 0.1]),
+    vertices=triangle_vertices,
+    n_vertices=3,
+    fixated=True,
 )
 
-# Renderer
-renderer = make_render_pixels(static_sim_params, screen_dim)
 
-# Step scene
+# Run scene scene
 step_fn = jax.jit(engine.step)
 
-pygame.init()
-screen_surface = pygame.display.set_mode(screen_dim)
-
 while True:
-    actions = -jnp.ones(static_sim_params.num_joints + static_sim_params.num_thrusters)
+    # We activate all motors and thrusters
+    actions = jnp.ones(static_sim_params.num_joints + static_sim_params.num_thrusters)
     sim_state, _ = step_fn(sim_state, sim_params, actions)
-
-    # Render
-    pixels = renderer(sim_state)
-
-    # Update screen
-    surface = pygame.surfarray.make_surface(np.array(pixels)[:, ::-1])
-    screen_surface.blit(surface, (0, 0))
-    pygame.display.flip()
-
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            return True
+    
+    # Do rendering...
 ```
+This produces the following scene (rendered with [JaxGL](https://github.com/FLAIROx/JaxGL))
 
+<p align="center">
+ <img width="50%" src="images/car.gif" />
+</p>
+
+# More Complex Levels
+For creating and using more complicated levels, we recommend using the built-in editors provide by [Kinetix](https://github.com/FLAIROx/Kinetix).
 
 # Installation
 ```commandline
@@ -96,11 +108,14 @@ pre-commit install
 # Citation
 If you use Jax2D in your work please cite it as follows:
 ```
-@software{matthews2024jax2d,
-  author = {Michael Matthews, Michael Beukman},
-  title = {Jax2D: A 2D physics engine in JAX},
-  url = {http://github.com/MichaelTMatthews/Jax2D},
-  year = {2024},
+@article{matthews2024kinetix,
+      title={Kinetix: Investigating the Training of General Agents through Open-Ended Physics-Based Control Tasks}, 
+      author={Michael Matthews and Michael Beukman and Chris Lu and Jakob Foerster},
+      year={2024},
+      eprint={2410.23208},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG},
+      url={https://arxiv.org/abs/2410.23208}, 
 }
 ```
 
