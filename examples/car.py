@@ -106,20 +106,41 @@ def main():
     # Create scene
     sim_state = create_empty_sim(static_sim_params, floor_offset=0.0)
 
-    sim_state, (_, r1) = add_rectangle_to_scene(
-        sim_state, jnp.array([2.0, 1.0]), jnp.array([1.0, 0.4]), static_sim_params
+    # Create a rectangle for the car body
+    sim_state, (_, r_index) = add_rectangle_to_scene(
+        sim_state, static_sim_params, position=jnp.array([2.0, 1.0]), dimensions=jnp.array([1.0, 0.4])
     )
 
-    sim_state, (_, c1) = add_circle_to_scene(sim_state, jnp.array([1.5, 1.0]), 0.35, static_sim_params)
-    sim_state, (_, c2) = add_circle_to_scene(sim_state, jnp.array([2.5, 1.0]), 0.35, static_sim_params)
+    # Create circles for the wheels of the car
+    sim_state, (_, c1_index) = add_circle_to_scene(
+        sim_state, static_sim_params, position=jnp.array([1.5, 1.0]), radius=0.35
+    )
+    sim_state, (_, c2_index) = add_circle_to_scene(
+        sim_state, static_sim_params, position=jnp.array([2.5, 1.0]), radius=0.35
+    )
 
+    # Join the wheels to the car body with revolute joints
+    # Relative positions are from the centre of masses of each object
     sim_state, _ = add_revolute_joint_to_scene(
-        sim_state, r1, c1, jnp.array([-0.5, 0.0]), jnp.zeros(2), static_sim_params, motor_on=True
+        sim_state,
+        static_sim_params,
+        a_index=r_index,
+        b_index=c1_index,
+        a_relative_pos=jnp.array([-0.5, 0.0]),
+        b_relative_pos=jnp.zeros(2),
+        motor_on=True,
     )
     sim_state, _ = add_revolute_joint_to_scene(
-        sim_state, r1, c2, jnp.array([0.5, 0.0]), jnp.zeros(2), static_sim_params, motor_on=True
+        sim_state,
+        static_sim_params,
+        a_index=r_index,
+        b_index=c2_index,
+        a_relative_pos=jnp.array([0.5, 0.0]),
+        b_relative_pos=jnp.zeros(2),
+        motor_on=True,
     )
 
+    # Add a triangle for a ramp - we fixate the ramp so it can't move
     triangle_vertices = jnp.array(
         [
             [0.5, 0.1],
@@ -128,7 +149,12 @@ def main():
         ]
     )
     sim_state, (_, t1) = add_polygon_to_scene(
-        sim_state, jnp.array([2.7, 0.1]), triangle_vertices, 3, static_sim_params, fixated=True
+        sim_state,
+        static_sim_params,
+        position=jnp.array([2.7, 0.1]),
+        vertices=triangle_vertices,
+        n_vertices=3,
+        fixated=True,
     )
 
     # Renderer

@@ -41,11 +41,11 @@ def add_thruster_to_scene(sim_state: SimState, object_index, relative_position, 
 @partial(jax.jit, static_argnames="static_sim_params")
 def add_revolute_joint_to_scene(
     sim_state: SimState,
+    static_sim_params,
     a_index,
     b_index,
     a_relative_pos,
     b_relative_pos,
-    static_sim_params,
     motor_on=False,
     motor_speed=1.0,
     motor_power=1.0,
@@ -86,11 +86,11 @@ def add_revolute_joint_to_scene(
 @partial(jax.jit, static_argnames="static_sim_params")
 def add_fixed_joint_to_scene(
     sim_state: SimState,
+    static_sim_params,
     a_index,
     b_index,
     a_relative_pos,
     b_relative_pos,
-    static_sim_params,
 ):
     joint_index = jnp.argmin(sim_state.joint.active)
     can_add_joint = jnp.logical_not(sim_state.joint.active.all())
@@ -119,9 +119,9 @@ def add_fixed_joint_to_scene(
 @partial(jax.jit, static_argnames="static_sim_params")
 def add_circle_to_scene(
     sim_state: SimState,
+    static_sim_params,
     position,
     radius,
-    static_sim_params,
     rotation=0.0,
     velocity=jnp.zeros(2),
     angular_velocity=0.0,
@@ -166,9 +166,9 @@ def add_circle_to_scene(
 @partial(jax.jit, static_argnames="static_sim_params")
 def add_rectangle_to_scene(
     sim_state: SimState,
+    static_sim_params,
     position,
     dimensions,
-    static_sim_params,
     rotation=0.0,
     velocity=jnp.zeros(2),
     angular_velocity=0.0,
@@ -189,10 +189,10 @@ def add_rectangle_to_scene(
 
     return add_polygon_to_scene(
         sim_state,
+        static_sim_params,
         position,
         vertices,
         4,
-        static_sim_params,
         rotation,
         velocity,
         angular_velocity,
@@ -206,10 +206,10 @@ def add_rectangle_to_scene(
 @partial(jax.jit, static_argnames=["static_sim_params", "n_vertices"])
 def add_polygon_to_scene(
     sim_state: SimState,
+    static_sim_params,
     position,
     vertices,
     n_vertices,
-    static_sim_params,
     rotation=0.0,
     velocity=jnp.zeros(2),
     angular_velocity=0.0,
