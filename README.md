@@ -88,22 +88,29 @@ This produces the following scene (rendered with [JaxGL](https://github.com/FLAI
 </p>
 
 # More Complex Levels
-For creating and using more complicated levels, we recommend using the built-in editors provide by [Kinetix](https://github.com/FLAIROx/Kinetix).
+For creating and using more complicated levels, we recommend using the built-in editors provided in [Kinetix](https://github.com/FLAIROx/Kinetix).
 
 # Installation
+To use Jax2D in your work you can install via PyPi:
 ```commandline
-git clone https://github.com/MichaelTMatthews/Jax2D.git
+pip install jax2d
+```
+
+If you want to extend Jax2D you can install as follows:
+```commandline
+git clone https://github.com/MichaelTMatthews/Jax2D
 cd Jax2D
-pip install -r requirements.txt -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
+pip install -e ".[dev]"
 pre-commit install
 ```
 
-# 🔎 See Also
+# See Also
 - 🍎 [Box2D](https://github.com/erincatto/box2d) The original C physics engine
 - 🤖 [Kinetix](https://github.com/FLAIROx/Kinetix) Jax2D as a reinforcement learning environment
 - 🌐 [KinetixJS](https://github.com/Michael-Beukman/KinetixJS) Jax2D reimplemented in Javascript
 - 🦾 [Brax](https://github.com/google/brax) 3D physics in JAX
 - 🦿 [MJX](https://github.com/google-deepmind/mujoco/tree/main/mjx) MuJoCo in JAX
+- 👨‍💻 [JaxGL](https://github.com/FLAIROx/JaxGL) Rendering in JAX
 
 # Citation
 If you use Jax2D in your work please cite it as follows:
