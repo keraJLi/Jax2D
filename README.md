@@ -71,7 +71,7 @@ sim_state, _ = add_polygon_to_scene(
 )
 
 
-# Run scene scene
+# Run scene
 step_fn = jax.jit(engine.step)
 
 while True:
