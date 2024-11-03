@@ -169,9 +169,6 @@ def add_rectangle_to_scene(
     friction=1.0,
     restitution=0.0,
 ):
-    polygon_index = jnp.argmin(sim_state.polygon.active)
-    can_add_polygon = jnp.logical_not(sim_state.polygon.active.all())
-
     half_dims = dimensions / 2.0
     vertices = jnp.array(
         [
@@ -182,13 +179,49 @@ def add_rectangle_to_scene(
         ]
     )
 
-    inverse_mass, _ = calc_inverse_mass_polygon(vertices, 4, static_sim_params, density)
-    inverse_inertia = calc_inverse_inertia_polygon(vertices, 4, static_sim_params, density)
+    return add_polygon_to_scene(
+        sim_state,
+        position,
+        vertices,
+        4,
+        static_sim_params,
+        rotation,
+        velocity,
+        angular_velocity,
+        density,
+        friction,
+        restitution,
+    )
+
+
+@partial(jax.jit, static_argnames=["static_sim_params", "n_vertices"])
+def add_polygon_to_scene(
+    sim_state: SimState,
+    position,
+    vertices,
+    n_vertices,
+    static_sim_params,
+    rotation=0.0,
+    velocity=jnp.zeros(2),
+    angular_velocity=0.0,
+    density=1.0,
+    friction=1.0,
+    restitution=0.0,
+):
+    v = jnp.zeros((static_sim_params.max_polygon_vertices, 2))
+    v = v.at[:n_vertices].set(vertices)
+
+    polygon_index = jnp.argmin(sim_state.polygon.active)
+    can_add_polygon = jnp.logical_not(sim_state.polygon.active.all())
+
+    inverse_mass, delta_centre_of_mass = calc_inverse_mass_polygon(v, n_vertices, static_sim_params, density)
+    position += delta_centre_of_mass
+    inverse_inertia = calc_inverse_inertia_polygon(v, n_vertices, static_sim_params, density)
 
     new_sim_state = sim_state.replace(
         polygon=sim_state.polygon.replace(
             position=sim_state.polygon.position.at[polygon_index].set(position),
-            vertices=sim_state.polygon.vertices.at[polygon_index].set(vertices),
+            vertices=sim_state.polygon.vertices.at[polygon_index].set(v),
             rotation=sim_state.polygon.rotation.at[polygon_index].set(rotation),
             velocity=sim_state.polygon.velocity.at[polygon_index].set(velocity),
             angular_velocity=sim_state.polygon.angular_velocity.at[polygon_index].set(angular_velocity),
@@ -197,6 +230,7 @@ def add_rectangle_to_scene(
             inverse_mass=sim_state.polygon.inverse_mass.at[polygon_index].set(inverse_mass),
             inverse_inertia=sim_state.polygon.inverse_inertia.at[polygon_index].set(inverse_inertia),
             active=sim_state.polygon.active.at[polygon_index].set(True),
+            n_vertices=sim_state.polygon.n_vertices.at[polygon_index].set(n_vertices),
         )
     )
 

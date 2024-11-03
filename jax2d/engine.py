@@ -92,7 +92,6 @@ def clip_state(state: SimState, params: SimParams):
 
 
 def calc_inverse_inertia_circle(radius, density):
-    # I found this on the internet so probably right
     inertia = math.pi * jnp.pow(radius, 4) / 4 * density
     return 1 / zero_to_one(inertia)
 
@@ -947,7 +946,7 @@ def get_empty_collision_manifolds(static_sim_params: StaticSimParams):
     return acc_rr_manifolds, acc_cr_manifolds, acc_cc_manifolds
 
 
-def create_empty_sim(static_sim_params, add_floor=True, add_walls_and_ceiling=True, scene_size=5):
+def create_empty_sim(static_sim_params, add_floor=True, add_walls_and_ceiling=True, scene_size=5, floor_offset=0.2):
 
     # Polygons
     polygon_pos = jnp.zeros((static_sim_params.num_polygons, 2), dtype=jnp.float32)
@@ -973,7 +972,6 @@ def create_empty_sim(static_sim_params, add_floor=True, add_walls_and_ceiling=Tr
     # We simulate half-spaces by just using polygons with large dimensions.
     # Floor
     if add_floor:
-        floor_offset = 0.2
         polygon_pos = polygon_pos.at[0].set(jnp.array([scene_size / 2, -scene_size + floor_offset]))
         polygon_vertices = polygon_vertices.at[0].set(
             jnp.array(

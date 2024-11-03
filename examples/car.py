@@ -15,6 +15,7 @@ from jax2d.scene import (
     add_fixed_joint_to_scene,
     add_revolute_joint_to_scene,
     add_thruster_to_scene,
+    add_polygon_to_scene,
 )
 from jax2d.sim_state import StaticSimParams, SimParams
 
@@ -29,6 +30,30 @@ def mask_shader(shader_fn):
         return jax.lax.select(mask, inner_fragment, current_frag)
 
     return masked_shader
+
+
+def make_fragment_shader_convex_dynamic_ngon_with_edges(max_n, edge_thickness=2):
+    def fragment_shader_convex_dynamic_ngon(position, current_frag, unit_position, uniform):
+        vertices, colour, edge_colour, n = uniform
+        assert vertices.shape == (max_n, 2)
+
+        next_vertices_idx = (jnp.arange(max_n) + 1) % n
+        next_vertices = vertices[next_vertices_idx]
+
+        inside = True
+        on_edge = False
+        for i in range(max_n):
+            side = signed_line_distance(position, vertices[i], next_vertices[i]) / jnp.linalg.norm(
+                vertices[i] - next_vertices[i]
+            )
+            inside &= (side <= 0) | (i >= n)
+            on_edge |= (side > -edge_thickness) & (side <= 0) & (i < n)
+
+        on_edge &= inside
+
+        return jax.lax.select(inside, jax.lax.select(on_edge, edge_colour, colour), current_frag)
+
+    return fragment_shader_convex_dynamic_ngon
 
 
 def make_render_pixels(static_sim_params, screen_dim):
@@ -48,9 +73,9 @@ def make_render_pixels(static_sim_params, screen_dim):
     circle_renderer = make_renderer(
         full_screen_size, mask_shader(fragment_shader_circle), (patch_size, patch_size), batched=True
     )
-    quad_renderer = make_renderer(
-        full_screen_size, mask_shader(fragment_shader_quad), (patch_size, patch_size), batched=True
-    )
+
+    polygon_shader = mask_shader(make_fragment_shader_convex_dynamic_ngon_with_edges(4))
+    quad_renderer = make_renderer(full_screen_size, polygon_shader, (patch_size, patch_size), batched=True)
 
     @jax.jit
     def render_pixels(state):
@@ -69,7 +94,13 @@ def make_render_pixels(static_sim_params, screen_dim):
         rect_patch_positions = jnp.maximum(rect_patch_positions, 0)
 
         rect_colours = jnp.ones((static_sim_params.num_polygons, 3)) * 128.0
-        rect_uniforms = (rectangle_vertices_pixel_space, rect_colours, state.polygon.active)
+        rect_uniforms = (
+            rectangle_vertices_pixel_space,
+            rect_colours,
+            rect_colours,
+            state.polygon.n_vertices,
+            state.polygon.active,
+        )
 
         pixels = quad_renderer(pixels, rect_patch_positions, rect_uniforms)
 
@@ -105,14 +136,39 @@ def main():
     engine = PhysicsEngine(static_sim_params)
 
     # Create scene
-    sim_state = create_empty_sim(static_sim_params)
-    sim_state, (_, c1) = add_circle_to_scene(sim_state, jnp.ones(2) * 2, 0.1, static_sim_params)
-    sim_state, (_, r1) = add_rectangle_to_scene(sim_state, jnp.ones(2), jnp.array([0.5, 1.0]), static_sim_params)
-    sim_state, (_, r2) = add_rectangle_to_scene(sim_state, jnp.ones(2), jnp.array([1.5, 1.0]), static_sim_params)
-    sim_state, _ = add_rectangle_to_scene(sim_state, jnp.ones(2) * 3, jnp.array([2.5, 1.0]), static_sim_params)
+    sim_state = create_empty_sim(static_sim_params, floor_offset=0.0)
 
-    sim_state, _ = add_revolute_joint_to_scene(sim_state, r1, r2, jnp.zeros(2), jnp.ones(2), static_sim_params)
-    sim_state, _ = add_thruster_to_scene(sim_state, r2, jnp.zeros(2), 0.0, power=10)
+    sim_state, (_, r1) = add_rectangle_to_scene(
+        sim_state, jnp.array([2.0, 1.0]), jnp.array([1.0, 0.4]), static_sim_params
+    )
+
+    sim_state, (_, c1) = add_circle_to_scene(sim_state, jnp.array([1.5, 1.0]), 0.3, static_sim_params)
+    sim_state, (_, c2) = add_circle_to_scene(sim_state, jnp.array([2.5, 1.0]), 0.3, static_sim_params)
+
+    sim_state, _ = add_revolute_joint_to_scene(
+        sim_state, r1, c1, jnp.array([-0.5, 0.0]), jnp.zeros(2), static_sim_params, motor_on=True
+    )
+    sim_state, _ = add_revolute_joint_to_scene(
+        sim_state, r1, c2, jnp.array([0.5, 0.0]), jnp.zeros(2), static_sim_params, motor_on=True
+    )
+
+    triangle_vertices = jnp.array(
+        [
+            [
+                -0.5,
+                -0.5,
+            ],
+            [
+                0.5,
+                -0.2,
+            ],
+            [
+                0.5,
+                0.2,
+            ],
+        ][::-1]
+    )
+    sim_state, (_, t1) = add_polygon_to_scene(sim_state, jnp.array([3.0, 1.0]), triangle_vertices, 3, static_sim_params)
 
     # Renderer
     renderer = make_render_pixels(static_sim_params, screen_dim)
@@ -123,8 +179,8 @@ def main():
     pygame.init()
     screen_surface = pygame.display.set_mode(screen_dim)
 
-    for i in range(1000):
-        actions = jnp.ones(static_sim_params.num_joints + static_sim_params.num_thrusters)
+    while True:
+        actions = -jnp.ones(static_sim_params.num_joints + static_sim_params.num_thrusters)
         sim_state, _ = step_fn(sim_state, sim_params, actions)
 
         # Render
