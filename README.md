@@ -27,7 +27,8 @@ sim_state = create_empty_sim(static_sim_params, floor_offset=0.0)
 
 # Create a rectangle for the car body
 sim_state, (_, r_index) = add_rectangle_to_scene(
-    sim_state, static_sim_params, position=jnp.array([2.0, 1.0]), dimensions=jnp.array([1.0, 0.4])
+    sim_state, static_sim_params, position=jnp.array([2.0, 1.0]),
+    dimensions=jnp.array([1.0, 0.4])
 )
 
 # Create circles for the wheels of the car
