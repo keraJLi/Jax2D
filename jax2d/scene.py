@@ -9,7 +9,6 @@ from jax2d.engine import (
     calc_inverse_inertia_circle,
     calc_inverse_mass_polygon,
     calc_inverse_inertia_polygon,
-    select_shape,
     calculate_collision_matrix,
 )
 from jax2d.sim_state import SimState

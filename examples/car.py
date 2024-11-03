@@ -4,8 +4,11 @@ import numpy as np
 import pygame
 from jaxgl.maths import signed_line_distance
 from jaxgl.renderer import clear_screen, make_renderer
-from jaxgl.shaders import fragment_shader_circle, fragment_shader_quad
-from matplotlib import pyplot as plt
+from jaxgl.shaders import (
+    fragment_shader_circle,
+    add_mask_to_shader,
+    make_fragment_shader_convex_dynamic_ngon_with_edges,
+)
 
 from jax2d.engine import PhysicsEngine, create_empty_sim
 from jax2d.maths import rmat
@@ -18,42 +21,6 @@ from jax2d.scene import (
     add_polygon_to_scene,
 )
 from jax2d.sim_state import StaticSimParams, SimParams
-
-
-def mask_shader(shader_fn):
-    @jax.jit
-    def masked_shader(position, current_frag, unit_position, uniform):
-        inner_uniforms = uniform[:-1]
-        mask = uniform[-1]
-
-        inner_fragment = shader_fn(position, current_frag, unit_position, inner_uniforms)
-        return jax.lax.select(mask, inner_fragment, current_frag)
-
-    return masked_shader
-
-
-def make_fragment_shader_convex_dynamic_ngon_with_edges(max_n, edge_thickness=2):
-    def fragment_shader_convex_dynamic_ngon(position, current_frag, unit_position, uniform):
-        vertices, colour, edge_colour, n = uniform
-        assert vertices.shape == (max_n, 2)
-
-        next_vertices_idx = (jnp.arange(max_n) + 1) % n
-        next_vertices = vertices[next_vertices_idx]
-
-        inside = True
-        on_edge = False
-        for i in range(max_n):
-            side = signed_line_distance(position, vertices[i], next_vertices[i]) / jnp.linalg.norm(
-                vertices[i] - next_vertices[i]
-            )
-            inside &= (side <= 0) | (i >= n)
-            on_edge |= (side > -edge_thickness) & (side <= 0) & (i < n)
-
-        on_edge &= inside
-
-        return jax.lax.select(inside, jax.lax.select(on_edge, edge_colour, colour), current_frag)
-
-    return fragment_shader_convex_dynamic_ngon
 
 
 def make_render_pixels(static_sim_params, screen_dim):
@@ -70,14 +37,10 @@ def make_render_pixels(static_sim_params, screen_dim):
 
     cleared_screen = clear_screen(full_screen_size, jnp.zeros(3))
 
-    circle_renderer = make_renderer(
-        full_screen_size,
-        mask_shader(fragment_shader_circle),
-        (patch_size, patch_size),
-        batched=True,
-    )
+    circle_shader = add_mask_to_shader(fragment_shader_circle)
+    circle_renderer = make_renderer(full_screen_size, circle_shader, (patch_size, patch_size), batched=True)
 
-    polygon_shader = mask_shader(make_fragment_shader_convex_dynamic_ngon_with_edges(4))
+    polygon_shader = add_mask_to_shader(make_fragment_shader_convex_dynamic_ngon_with_edges(4))
     quad_renderer = make_renderer(full_screen_size, polygon_shader, (patch_size, patch_size), batched=True)
 
     @jax.jit
@@ -151,22 +114,10 @@ def main():
     sim_state, (_, c2) = add_circle_to_scene(sim_state, jnp.array([2.5, 1.0]), 0.35, static_sim_params)
 
     sim_state, _ = add_revolute_joint_to_scene(
-        sim_state,
-        r1,
-        c1,
-        jnp.array([-0.5, 0.0]),
-        jnp.zeros(2),
-        static_sim_params,
-        motor_on=True,
+        sim_state, r1, c1, jnp.array([-0.5, 0.0]), jnp.zeros(2), static_sim_params, motor_on=True
     )
     sim_state, _ = add_revolute_joint_to_scene(
-        sim_state,
-        r1,
-        c2,
-        jnp.array([0.5, 0.0]),
-        jnp.zeros(2),
-        static_sim_params,
-        motor_on=True,
+        sim_state, r1, c2, jnp.array([0.5, 0.0]), jnp.zeros(2), static_sim_params, motor_on=True
     )
 
     triangle_vertices = jnp.array(
