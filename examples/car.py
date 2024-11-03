@@ -147,8 +147,8 @@ def main():
         sim_state, jnp.array([2.0, 1.0]), jnp.array([1.0, 0.4]), static_sim_params
     )
 
-    sim_state, (_, c1) = add_circle_to_scene(sim_state, jnp.array([1.5, 1.0]), 0.3, static_sim_params)
-    sim_state, (_, c2) = add_circle_to_scene(sim_state, jnp.array([2.5, 1.0]), 0.3, static_sim_params)
+    sim_state, (_, c1) = add_circle_to_scene(sim_state, jnp.array([1.5, 1.0]), 0.35, static_sim_params)
+    sim_state, (_, c2) = add_circle_to_scene(sim_state, jnp.array([2.5, 1.0]), 0.35, static_sim_params)
 
     sim_state, _ = add_revolute_joint_to_scene(
         sim_state,
@@ -171,12 +171,14 @@ def main():
 
     triangle_vertices = jnp.array(
         [
-            [0.5, 0.2],
-            [0.5, -0.2],
-            [-0.5, -0.5],
+            [0.5, 0.1],
+            [0.5, -0.1],
+            [-0.5, -0.1],
         ]
     )
-    sim_state, (_, t1) = add_polygon_to_scene(sim_state, jnp.array([3.0, 1.0]), triangle_vertices, 3, static_sim_params)
+    sim_state, (_, t1) = add_polygon_to_scene(
+        sim_state, jnp.array([2.7, 0.1]), triangle_vertices, 3, static_sim_params, fixated=True
+    )
 
     # Renderer
     renderer = make_render_pixels(static_sim_params, screen_dim)

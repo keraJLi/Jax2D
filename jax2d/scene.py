@@ -129,12 +129,16 @@ def add_circle_to_scene(
     density=1.0,
     friction=1.0,
     restitution=0.0,
+    fixated=False,
 ):
     circle_index = jnp.argmin(sim_state.circle.active)
     can_add_circle = jnp.logical_not(sim_state.circle.active.all())
 
     inverse_mass = calc_inverse_mass_circle(radius, density)
     inverse_inertia = calc_inverse_inertia_circle(radius, density)
+
+    inverse_mass *= jnp.logical_not(fixated)
+    inverse_inertia *= jnp.logical_not(fixated)
 
     new_sim_state = sim_state.replace(
         circle=sim_state.circle.replace(
@@ -172,6 +176,7 @@ def add_rectangle_to_scene(
     density=1.0,
     friction=1.0,
     restitution=0.0,
+    fixated=False,
 ):
     half_dims = dimensions / 2.0
     vertices = jnp.array(
@@ -195,6 +200,7 @@ def add_rectangle_to_scene(
         density,
         friction,
         restitution,
+        fixated,
     )
 
 
@@ -211,21 +217,29 @@ def add_polygon_to_scene(
     density=1.0,
     friction=1.0,
     restitution=0.0,
+    fixated=False,
 ):
-    v = jnp.zeros((static_sim_params.max_polygon_vertices, 2))
-    v = v.at[:n_vertices].set(vertices)
+    # Fill vertices up to maxP
+    vertices = jnp.zeros((static_sim_params.max_polygon_vertices, 2)).at[:n_vertices].set(vertices)
 
     polygon_index = jnp.argmin(sim_state.polygon.active)
     can_add_polygon = jnp.logical_not(sim_state.polygon.active.all())
 
-    inverse_mass, delta_centre_of_mass = calc_inverse_mass_polygon(v, n_vertices, static_sim_params, density)
+    # Adjust position and vertices according to new CoM
+    # This will only be non-zero if the current CoM is wrong
+    inverse_mass, delta_centre_of_mass = calc_inverse_mass_polygon(vertices, n_vertices, static_sim_params, density)
     position += delta_centre_of_mass
-    inverse_inertia = calc_inverse_inertia_polygon(v, n_vertices, static_sim_params, density)
+    vertices -= delta_centre_of_mass[None, :]
+
+    inverse_inertia = calc_inverse_inertia_polygon(vertices, n_vertices, static_sim_params, density)
+
+    inverse_mass *= jnp.logical_not(fixated)
+    inverse_inertia *= jnp.logical_not(fixated)
 
     new_sim_state = sim_state.replace(
         polygon=sim_state.polygon.replace(
             position=sim_state.polygon.position.at[polygon_index].set(position),
-            vertices=sim_state.polygon.vertices.at[polygon_index].set(v),
+            vertices=sim_state.polygon.vertices.at[polygon_index].set(vertices),
             rotation=sim_state.polygon.rotation.at[polygon_index].set(rotation),
             velocity=sim_state.polygon.velocity.at[polygon_index].set(velocity),
             angular_velocity=sim_state.polygon.angular_velocity.at[polygon_index].set(angular_velocity),
