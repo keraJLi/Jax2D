@@ -30,7 +30,11 @@ def add_thruster_to_scene(sim_state: SimState, object_index, relative_position, 
     )
 
     return (
-        jax.tree_util.tree_map(lambda x, y: jax.lax.select(can_add_thruster, x, y), new_sim_state, sim_state),
+        jax.tree_util.tree_map(
+            lambda x, y: jax.lax.select(can_add_thruster, x, y),
+            new_sim_state,
+            sim_state,
+        ),
         thruster_index,
     )
 

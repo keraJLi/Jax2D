@@ -111,7 +111,9 @@ def resolve_collision(
     impulse_tangent_mag = -vt / zero_to_one(inv_mass_tangent)
     max_friction_impulse = mu * new_acc_impulse_normal
     new_acc_impulse_tangent = jnp.clip(
-        collision_manifold.acc_impulse_tangent + impulse_tangent_mag, -max_friction_impulse, max_friction_impulse
+        collision_manifold.acc_impulse_tangent + impulse_tangent_mag,
+        -max_friction_impulse,
+        max_friction_impulse,
     )
     impulse_tangent_mag = new_acc_impulse_tangent - collision_manifold.acc_impulse_tangent
     impulse_tangent = impulse_tangent_mag * tangent
@@ -159,7 +161,14 @@ def generate_manifold_circle_circle(a: RigidBody, b: RigidBody, ws_manifold: Col
     collision_point = a.position + normal * a.radius
 
     vn = _calc_relative_velocity(
-        a.velocity, a.position, a.angular_velocity, b.velocity, b.position, b.angular_velocity, collision_point, normal
+        a.velocity,
+        a.position,
+        a.angular_velocity,
+        b.velocity,
+        b.position,
+        b.angular_velocity,
+        collision_point,
+        normal,
     )
     v_rest = vn * jnp.minimum(a.restitution, b.restitution)
 
@@ -258,7 +267,9 @@ def generate_manifold_circle_polygon(circle: RigidBody, polygon: RigidBody, ws_m
         collision_point=collision_point,
         active=active,
         acc_impulse_normal=jax.lax.select(
-            ws_manifold.active & active, ws_manifold.acc_impulse_normal, jnp.zeros_like(ws_manifold.acc_impulse_normal)
+            ws_manifold.active & active,
+            ws_manifold.acc_impulse_normal,
+            jnp.zeros_like(ws_manifold.acc_impulse_normal),
         ),
         acc_impulse_tangent=jax.lax.select(
             ws_manifold.active & active,
@@ -312,8 +323,18 @@ def generate_manifolds_polygon_polygon(a: RigidBody, b: RigidBody, ws_manifolds:
         + a.position
     )
 
-    a_face = jnp.array([a_v_world_space[a_face_index], a_v_world_space[(a_face_index + 1) % a.n_vertices]])
-    b_face = jnp.array([b_v_world_space[b_face_index], b_v_world_space[(b_face_index + 1) % b.n_vertices]])
+    a_face = jnp.array(
+        [
+            a_v_world_space[a_face_index],
+            a_v_world_space[(a_face_index + 1) % a.n_vertices],
+        ]
+    )
+    b_face = jnp.array(
+        [
+            b_v_world_space[b_face_index],
+            b_v_world_space[(b_face_index + 1) % b.n_vertices],
+        ]
+    )
 
     ref_face = jax.lax.select(a_has_most_pen, b_face, a_face)
     # Incident face is composed of the two vertices that have the least penetration into the reference face
@@ -339,8 +360,16 @@ def generate_manifolds_polygon_polygon(a: RigidBody, b: RigidBody, ws_manifolds:
     # Clip incident face to reference face boundaries
     clipped_incident_face_ref_space = jnp.array(
         [
-            jnp.clip(incident_face_ref_space[0], a_min=jnp.array([-99999, 0]), a_max=jnp.array([999999, r1_r2_len])),
-            jnp.clip(incident_face_ref_space[1], a_min=jnp.array([-99999, 0]), a_max=jnp.array([999999, r1_r2_len])),
+            jnp.clip(
+                incident_face_ref_space[0],
+                a_min=jnp.array([-99999, 0]),
+                a_max=jnp.array([999999, r1_r2_len]),
+            ),
+            jnp.clip(
+                incident_face_ref_space[1],
+                a_min=jnp.array([-99999, 0]),
+                a_max=jnp.array([999999, r1_r2_len]),
+            ),
         ]
     )
 
@@ -365,19 +394,35 @@ def generate_manifolds_polygon_polygon(a: RigidBody, b: RigidBody, ws_manifolds:
 
     b_normals = _calc_normals(rot_left, next_b_vertices, b.vertices)
     norm = jax.lax.select(
-        a_has_most_pen, -jnp.matmul(b_M, b_normals[b_face_index]), jnp.matmul(a_M, a_normals[a_face_index])
+        a_has_most_pen,
+        -jnp.matmul(b_M, b_normals[b_face_index]),
+        jnp.matmul(a_M, a_normals[a_face_index]),
     )
 
     ws_cm1 = jax.tree.map(lambda x: x[0], ws_manifolds)
     ws_cm2 = jax.tree.map(lambda x: x[1], ws_manifolds)
 
     vn1 = _calc_relative_velocity(
-        a.velocity, a.position, a.angular_velocity, b.velocity, b.position, b.angular_velocity, collision_point1, norm
+        a.velocity,
+        a.position,
+        a.angular_velocity,
+        b.velocity,
+        b.position,
+        b.angular_velocity,
+        collision_point1,
+        norm,
     )
     v_rest1 = vn1 * jnp.minimum(a.restitution, b.restitution)
 
     vn2 = _calc_relative_velocity(
-        a.velocity, a.position, a.angular_velocity, b.velocity, b.position, b.angular_velocity, collision_point2, norm
+        a.velocity,
+        a.position,
+        a.angular_velocity,
+        b.velocity,
+        b.position,
+        b.angular_velocity,
+        collision_point2,
+        norm,
     )
     v_rest2 = vn2 * jnp.minimum(a.restitution, b.restitution)
 
@@ -386,10 +431,14 @@ def generate_manifolds_polygon_polygon(a: RigidBody, b: RigidBody, ws_manifolds:
         penetration=-most_sep,
         collision_point=collision_point1,
         acc_impulse_normal=jax.lax.select(
-            ws_cm1.active & is_colliding, ws_cm1.acc_impulse_normal, jnp.zeros_like(ws_cm1.acc_impulse_normal)
+            ws_cm1.active & is_colliding,
+            ws_cm1.acc_impulse_normal,
+            jnp.zeros_like(ws_cm1.acc_impulse_normal),
         ),
         acc_impulse_tangent=jax.lax.select(
-            ws_cm1.active & is_colliding, ws_cm1.acc_impulse_tangent, jnp.zeros_like(ws_cm1.acc_impulse_tangent)
+            ws_cm1.active & is_colliding,
+            ws_cm1.acc_impulse_tangent,
+            jnp.zeros_like(ws_cm1.acc_impulse_tangent),
         ),
         active=is_colliding,
         restitution_velocity_target=v_rest1,
@@ -414,7 +463,10 @@ def generate_manifolds_polygon_polygon(a: RigidBody, b: RigidBody, ws_manifolds:
     )
 
     cm1 = jax.tree.map(lambda x: jax.lax.select(is_colliding, x, jnp.zeros_like(x)), cm1)
-    cm2 = jax.tree.map(lambda x: jax.lax.select(is_colliding & both_points_in_neg_space, x, jnp.zeros_like(x)), cm2)
+    cm2 = jax.tree.map(
+        lambda x: jax.lax.select(is_colliding & both_points_in_neg_space, x, jnp.zeros_like(x)),
+        cm2,
+    )
     return jax.tree_util.tree_map(lambda x, y: jnp.stack([x, y], axis=0), cm1, cm2)
 
 

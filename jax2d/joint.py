@@ -132,7 +132,9 @@ def get_global_joint_position(a: RigidBody, b: RigidBody, a_relative_pos, b_rela
 
     # If we have an infinite mass object we just snap to these
     joint_point = jax.lax.select(
-        a.inverse_mass == 0, a_point, jax.lax.select(b.inverse_mass == 0, b_point, joint_point)
+        a.inverse_mass == 0,
+        a_point,
+        jax.lax.select(b.inverse_mass == 0, b_point, joint_point),
     )
     return joint_point, a_point, b_point, r_a, r_b
 

@@ -67,7 +67,9 @@ def clip_state(state: SimState, params: SimParams):
                 a_max=params.clip_velocity,
             ),
             angular_velocity=jnp.clip(
-                state.circle.angular_velocity, a_min=-params.clip_angular_velocity, a_max=params.clip_angular_velocity
+                state.circle.angular_velocity,
+                a_min=-params.clip_angular_velocity,
+                a_max=params.clip_angular_velocity,
             ),
         ),
         polygon=state.polygon.replace(
@@ -169,7 +171,10 @@ def recalculate_mass_and_inertia(state: SimState, static_params, polygon_densiti
     # We first calculate centroids for polygons and move them accordingly.
     # This is required to ensure that the centroid is inside the polygon for inertia calculations.
     polygon_inverse_mass, pos_diff = jax.vmap(calc_inverse_mass_polygon, in_axes=(0, 0, None, 0))(
-        state.polygon.vertices, state.polygon.n_vertices, static_params, polygon_densities
+        state.polygon.vertices,
+        state.polygon.n_vertices,
+        static_params,
+        polygon_densities,
     )
     polygon_inverse_mass *= state.polygon.inverse_mass != 0
     pos_diff = jnp.where((state.polygon.inverse_mass == 0)[:, None], jnp.zeros_like(pos_diff), pos_diff)
@@ -182,7 +187,10 @@ def recalculate_mass_and_inertia(state: SimState, static_params, polygon_densiti
     )
 
     polygon_inverse_inertia = jax.vmap(calc_inverse_inertia_polygon, in_axes=(0, 0, None, 0))(
-        state.polygon.vertices, state.polygon.n_vertices, static_params, polygon_densities
+        state.polygon.vertices,
+        state.polygon.n_vertices,
+        static_params,
+        polygon_densities,
     ) * (state.polygon.inverse_inertia != 0)
 
     circle_inverse_mass = jax.vmap(calc_inverse_mass_circle, (0, 0))(state.circle.radius, circle_densities) * (
@@ -236,7 +244,9 @@ def calculate_collision_matrix(static_sim_params, joints):
     joint_adder = make_joint_adder(joints)
 
     collision_matrix, _ = jax.lax.scan(
-        joint_adder, collision_matrix, jnp.tile(jnp.arange(static_sim_params.num_joints), static_sim_params.num_joints)
+        joint_adder,
+        collision_matrix,
+        jnp.tile(jnp.arange(static_sim_params.num_joints), static_sim_params.num_joints),
     )
 
     return collision_matrix
@@ -353,7 +363,6 @@ def make_impulse_resolver_fn(
     n_manifolds_to_compute,
     index_pairs,
 ):
-
     is_rr = shape1_poly & shape2_poly
 
     def _resolve_manifolds(state, manifolds, params):
@@ -525,7 +534,17 @@ def make_joint_resolver_fn(n_joints, static_sim_params):
             s1_is_poly = joint.a_index < static_sim_params.num_polygons
             s2_is_poly = joint.b_index < static_sim_params.num_polygons
 
-            a_dv, b_dv, a_drv, b_drv, a_dp, b_dp, jp, impulse, r_impulse = resolve_joint(s1, s2, joint, params)
+            (
+                a_dv,
+                b_dv,
+                a_drv,
+                b_drv,
+                a_dp,
+                b_dp,
+                jp,
+                impulse,
+                r_impulse,
+            ) = resolve_joint(s1, s2, joint, params)
 
             state = state.replace(
                 joint=state.joint.replace(
@@ -742,7 +761,6 @@ class PhysicsEngine:
         return rr_manifolds, cr_manifolds, cc_manifolds
 
     def step(self, state: SimState, params: SimParams, actions: jnp.ndarray):
-
         chex.assert_shape(
             actions,
             (self.static_sim_params.num_joints + self.static_sim_params.num_thrusters,),
@@ -905,11 +923,14 @@ class PhysicsEngine:
 
         state = state.replace(thruster=jax.vmap(_update_thruster_relative_pos)(state.thruster))
 
-        return state, (jax.tree.map(lambda x: x[:, 0], rr_manifolds), cr_manifolds, cc_manifolds)
+        return state, (
+            jax.tree.map(lambda x: x[:, 0], rr_manifolds),
+            cr_manifolds,
+            cc_manifolds,
+        )
 
 
 def get_empty_collision_manifolds(static_sim_params: StaticSimParams):
-
     nrr = calc_nrr(static_sim_params)
     acc_rr_manifolds = CollisionManifold(
         normal=jnp.zeros((nrr, 2, 2), dtype=jnp.float32),
@@ -946,8 +967,13 @@ def get_empty_collision_manifolds(static_sim_params: StaticSimParams):
     return acc_rr_manifolds, acc_cr_manifolds, acc_cc_manifolds
 
 
-def create_empty_sim(static_sim_params, add_floor=True, add_walls_and_ceiling=True, scene_size=5, floor_offset=0.2):
-
+def create_empty_sim(
+    static_sim_params,
+    add_floor=True,
+    add_walls_and_ceiling=True,
+    scene_size=5,
+    floor_offset=0.2,
+):
     # Polygons
     polygon_pos = jnp.zeros((static_sim_params.num_polygons, 2), dtype=jnp.float32)
     polygon_vertices = jnp.zeros(
@@ -1074,7 +1100,11 @@ def create_empty_sim(static_sim_params, add_floor=True, add_walls_and_ceiling=Tr
 
     collision_matrix = calculate_collision_matrix(static_sim_params, joints)
 
-    acc_rr_manifolds, acc_cr_manifolds, acc_cc_manifolds = get_empty_collision_manifolds(static_sim_params)
+    (
+        acc_rr_manifolds,
+        acc_cr_manifolds,
+        acc_cc_manifolds,
+    ) = get_empty_collision_manifolds(static_sim_params)
 
     n_vertices = jnp.ones((static_sim_params.num_polygons,), dtype=jnp.int32) * 4
     state = SimState(

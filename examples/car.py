@@ -71,7 +71,10 @@ def make_render_pixels(static_sim_params, screen_dim):
     cleared_screen = clear_screen(full_screen_size, jnp.zeros(3))
 
     circle_renderer = make_renderer(
-        full_screen_size, mask_shader(fragment_shader_circle), (patch_size, patch_size), batched=True
+        full_screen_size,
+        mask_shader(fragment_shader_circle),
+        (patch_size, patch_size),
+        batched=True,
     )
 
     polygon_shader = mask_shader(make_fragment_shader_convex_dynamic_ngon_with_edges(4))
@@ -85,7 +88,9 @@ def make_render_pixels(static_sim_params, screen_dim):
         rect_positions_pixel_space = _world_space_to_pixel_space(state.polygon.position)
         rectangle_rmats = jax.vmap(rmat)(state.polygon.rotation)
         rectangle_rmats = jnp.repeat(
-            rectangle_rmats[:, None, :, :], repeats=static_sim_params.max_polygon_vertices, axis=1
+            rectangle_rmats[:, None, :, :],
+            repeats=static_sim_params.max_polygon_vertices,
+            axis=1,
         )
         rectangle_vertices_pixel_space = _world_space_to_pixel_space(
             state.polygon.position[:, None, :] + jax.vmap(jax.vmap(jnp.matmul))(rectangle_rmats, state.polygon.vertices)
@@ -146,27 +151,30 @@ def main():
     sim_state, (_, c2) = add_circle_to_scene(sim_state, jnp.array([2.5, 1.0]), 0.3, static_sim_params)
 
     sim_state, _ = add_revolute_joint_to_scene(
-        sim_state, r1, c1, jnp.array([-0.5, 0.0]), jnp.zeros(2), static_sim_params, motor_on=True
+        sim_state,
+        r1,
+        c1,
+        jnp.array([-0.5, 0.0]),
+        jnp.zeros(2),
+        static_sim_params,
+        motor_on=True,
     )
     sim_state, _ = add_revolute_joint_to_scene(
-        sim_state, r1, c2, jnp.array([0.5, 0.0]), jnp.zeros(2), static_sim_params, motor_on=True
+        sim_state,
+        r1,
+        c2,
+        jnp.array([0.5, 0.0]),
+        jnp.zeros(2),
+        static_sim_params,
+        motor_on=True,
     )
 
     triangle_vertices = jnp.array(
         [
-            [
-                -0.5,
-                -0.5,
-            ],
-            [
-                0.5,
-                -0.2,
-            ],
-            [
-                0.5,
-                0.2,
-            ],
-        ][::-1]
+            [0.5, 0.2],
+            [0.5, -0.2],
+            [-0.5, -0.5],
+        ]
     )
     sim_state, (_, t1) = add_polygon_to_scene(sim_state, jnp.array([3.0, 1.0]), triangle_vertices, 3, static_sim_params)
 
