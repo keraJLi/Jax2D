@@ -1,5 +1,7 @@
 import jax
 import jax.numpy as jnp
+import numpy as np
+import pygame
 from jaxgl.maths import signed_line_distance
 from jaxgl.renderer import clear_screen, make_renderer
 from jaxgl.shaders import fragment_shader_circle, fragment_shader_quad
@@ -23,11 +25,7 @@ def mask_shader(shader_fn):
     return masked_shader
 
 
-def make_render_pixels(
-    static_sim_params,
-):
-    screen_dim = (500, 500)
-
+def make_render_pixels(static_sim_params, screen_dim):
     ppud = 100
     patch_size = 512
     screen_padding = patch_size
@@ -93,6 +91,8 @@ def make_render_pixels(
 
 
 def main():
+    screen_dim = (500, 500)
+
     # Create engine with default parameters
     static_sim_params = StaticSimParams()
     sim_params = SimParams()
@@ -106,19 +106,29 @@ def main():
     sim_state = add_rectangle_to_scene(sim_state, jnp.ones(2) * 3, jnp.array([2.5, 1.0]), static_sim_params)
 
     # Renderer
-    renderer = make_render_pixels(static_sim_params)
+    renderer = make_render_pixels(static_sim_params, screen_dim)
 
     # Step scene
     step_fn = jax.jit(engine.step)
+
+    pygame.init()
+    screen_surface = pygame.display.set_mode(screen_dim)
+
     for i in range(1000):
-        print(i)
         actions = jnp.zeros(static_sim_params.num_joints + static_sim_params.num_thrusters)
         sim_state, _ = step_fn(sim_state, sim_params, actions)
 
-    # Render
-    pixels = renderer(sim_state)
-    plt.imshow(pixels.astype(jnp.uint8).transpose((1, 0, 2))[::-1])
-    plt.show()
+        # Render
+        pixels = renderer(sim_state)
+
+        # Update screen
+        surface = pygame.surfarray.make_surface(np.array(pixels))
+        screen_surface.blit(surface, (0, 0))
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return True
 
 
 if __name__ == "__main__":
