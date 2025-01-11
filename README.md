@@ -21,9 +21,9 @@ Jax2D was initially created for the backend of the [Kinetix](https://github.com/
  <img width="50%" src="images/tower.gif" />
 </p>
 
-# Why should I use Jax2D?
+# When should I use Jax2D?
 The main reason to use Jax2D over other JAX physics engines such as [Brax](https://github.com/google/brax) or [MJX](https://github.com/google-deepmind/mujoco/tree/main/mjx) is that Jax2D scenes are (largely) dynamically specified.
-Jax2D always has O(n^2) runtime with respect to the number of entities in a scene, since we must always calculate the full collision resolution for every pair of entities.
+However, Jax2D always has O(n^2) runtime with respect to the number of entities in a scene, since we must always calculate the full collision resolution for every pair of entities.
 This means it is usually not appropriate for simulating scenes with large numbers (>100) of entities.
 
 In short: Jax2D excels at simulating **lots** of **small** and **diverse** scenes in parallel **very fast**.
