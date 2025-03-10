@@ -133,11 +133,9 @@ If you use Jax2D in your work please cite it as follows:
 @article{matthews2024kinetix,
       title={Kinetix: Investigating the Training of General Agents through Open-Ended Physics-Based Control Tasks}, 
       author={Michael Matthews and Michael Beukman and Chris Lu and Jakob Foerster},
-      year={2024},
-      eprint={2410.23208},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG},
-      url={https://arxiv.org/abs/2410.23208}, 
+      booktitle={The Thirteenth International Conference on Learning Representations},
+      year={2025},
+      url={https://arxiv.org/abs/2410.23208}
 }
 ```
 
