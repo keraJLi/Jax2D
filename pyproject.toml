@@ -6,8 +6,9 @@ build-backend = "setuptools.build_meta"
 name = "jax2d"
 version = "1.0.1"
 authors = [
-  { name="Michael Matthews", email="michael.matthews@eng.ox.ac.uk" },
-  { name="Michael Beukman", email="michael.beukman@eng.ox.ac.uk" },
+    { name="Michael Matthews", email="michael.matthews@eng.ox.ac.uk" },
+    { name="Michael Beukman", email="michael.beukman@eng.ox.ac.uk" },
+    {name = "Jarek Liesen", email = "jarek.liesen@reuben.ox.ac.uk"},
 ]
 description = "A JAX 2D Rigid-Body Physics Engine"
 readme = "README.md"
@@ -36,3 +37,9 @@ Issues = "https://github.com/MichaelTMatthews/Jax2D/Issues"
 
 [tool.setuptools.packages.find]
 include=["jax2d*"]
+
+[tool.pdm]
+distribution = true
+
+[tool.black]
+line-length = 120

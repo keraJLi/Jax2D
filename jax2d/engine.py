@@ -7,26 +7,23 @@ import jax.numpy as jnp
 
 from jax2d.collision import (
     generate_manifold_circle_circle,
+    generate_manifold_circle_polygon,
+    generate_manifolds_polygon_polygon,
     resolve_collision,
     resolve_warm_starting_impulse,
-    generate_manifolds_polygon_polygon,
-    generate_manifold_circle_polygon,
 )
-from jax2d.sim_state import (
-    SimState,
-    RigidBody,
-    Joint,
-    CollisionManifold,
-    Thruster,
-    SimParams,
-    StaticSimParams,
-)
-from jax2d.joint import (
-    apply_motor,
-    resolve_joint_warm_start,
-    resolve_joint,
-)
+from jax2d.joint import apply_motor, resolve_joint, resolve_joint_warm_start
 from jax2d.maths import rmat, zero_to_one
+from jax2d.sim_state import (
+    CollisionManifold,
+    Joint,
+    RigidBody,
+    SimParams,
+    SimState,
+    StaticSimParams,
+    Thruster,
+    Wind,
+)
 
 
 def recompute_global_joint_positions(state: SimState, static_params: StaticSimParams):
@@ -663,6 +660,27 @@ def get_pairwise_interaction_indices(static_sim_params: StaticSimParams):
     return ncc, ncr, nrr, circle_circle_pairs, circle_poly_pairs, poly_poly_pairs
 
 
+def get_wind_force(wind: Wind):
+    """Get wind force from wind speed and direction"""
+    return wind.speed * jnp.array([jnp.cos(wind.direction), jnp.sin(wind.direction)])
+
+
+def update_wind(wind: Wind, params: SimParams):
+    """Update wind speed using Euler-Maruyama method and wind direction using forward Euler method"""
+    key, subkey = jax.random.split(wind.key)
+    n_speed, n_direction = jax.random.normal(subkey, (2,))
+
+    speed_drift = (params.wind_speed_mean + params.wind_speed_std) * params.dt / params.wind_speed_tau
+    speed_noise = params.wind_speed_std * jnp.sqrt(params.dt) * n_speed
+    speed = wind.speed + speed_drift + speed_noise
+
+    direction_noise = params.wind_direction_std * jnp.sqrt(params.dt) * n_direction
+    direction = wind.direction + direction_noise
+    direction = jnp.mod(direction + jnp.pi, 2 * jnp.pi) - jnp.pi
+
+    return wind.replace(key=key, speed=speed, direction=direction)
+
+
 class PhysicsEngine:
     def __init__(self, static_sim_params: StaticSimParams):
         self.static_sim_params = static_sim_params
@@ -776,6 +794,18 @@ class PhysicsEngine:
             circle=state.circle.replace(
                 velocity=state.circle.velocity + state.gravity * params.dt * (state.circle.inverse_mass != 0)[:, None],
             ),
+        )
+
+        # Apply and update wind
+        wind_force = get_wind_force(state.wind)
+        state = state.replace(
+            polygon=state.polygon.replace(
+                velocity=state.polygon.velocity + wind_force * params.dt * (state.polygon.inverse_mass != 0)[:, None]
+            ),
+            circle=state.circle.replace(
+                velocity=state.circle.velocity + wind_force * params.dt * (state.circle.inverse_mass != 0)[:, None]
+            ),
+            wind=update_wind(state.wind, params),
         )
 
         rr_manifolds, cr_manifolds, cc_manifolds = self.calculate_collision_manifolds(state)
@@ -1098,6 +1128,12 @@ def create_empty_sim(
         rotation=jnp.zeros(static_sim_params.num_thrusters, dtype=jnp.float32),
     )
 
+    wind = Wind(
+        key=jax.random.PRNGKey(0),
+        speed=jnp.zeros((), dtype=jnp.float32),
+        direction=jnp.zeros((), dtype=jnp.float32),
+    )
+
     collision_matrix = calculate_collision_matrix(static_sim_params, joints)
 
     (
@@ -1153,6 +1189,7 @@ def create_empty_sim(
         acc_rr_manifolds=acc_rr_manifolds,
         acc_cr_manifolds=acc_cr_manifolds,
         acc_cc_manifolds=acc_cc_manifolds,
+        wind=wind,
         gravity=jnp.array([0.0, -9.81]),
     )
 

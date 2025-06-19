@@ -1,4 +1,4 @@
-from dataclasses import field
+import chex
 import jax.numpy as jnp
 from flax import struct
 
@@ -156,12 +156,31 @@ class Thruster:
 
 
 @struct.dataclass
+class Wind:
+    """
+    Represents a wind force applied to the simulation.
+    Speed is sampled from an Ornstein-Uhlenbeck process with a stationary variance of
+    speed_std ** 2 * speed_tau / 2. Direction is sampled from a Wiener process mod 2pi.
+
+    Parameters:
+        key (chex.PRNGKey): Key for the wind force.
+        speed (float): Current speed of the wind.
+        direction (float): Current direction of the wind.
+    """
+
+    key: chex.PRNGKey
+    speed: float
+    direction: float  # rad
+
+
+@struct.dataclass
 class SimState:
     polygon: RigidBody
     circle: RigidBody
     joint: Joint
     thruster: Thruster
     collision_matrix: jnp.ndarray
+    wind: Wind
 
     # Impulse accumulation
     acc_rr_manifolds: CollisionManifold
@@ -197,6 +216,13 @@ class SimParams:
     base_thruster_power: float = 10.0
     motor_decay_coefficient: float = 0.1
     motor_joint_limit: float = 0.1  # rad
+
+    # Wind
+    wind_speed_mean: float = 0.0
+    wind_speed_std: float = 0.0
+    wind_speed_tau: float = 0.0
+    wind_direction_std: float = 0.0
+    wind_direction_tau: float = 0.0
 
     # Other defaults
     base_friction: float = 0.4
