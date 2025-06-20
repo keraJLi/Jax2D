@@ -222,7 +222,6 @@ class SimParams:
     wind_speed_std: float = 0.0
     wind_speed_tau: float = 0.0
     wind_direction_std: float = 0.0
-    wind_direction_tau: float = 0.0
 
     # Other defaults
     base_friction: float = 0.4
